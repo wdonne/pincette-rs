@@ -9,7 +9,8 @@ import org.reactivestreams.Subscriber;
 import org.reactivestreams.Subscription;
 
 /**
- * Provides constructors to which lambdas can be given.
+ * Provides constructors to which lambdas can be given. It requests values from the received
+ * subscription one by one.
  *
  * @param <T> the parameterized type.
  * @author Werner Donn\u00e9
