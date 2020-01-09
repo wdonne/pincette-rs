@@ -24,11 +24,11 @@ import org.reactivestreams.Subscription;
  */
 public class InputStreamSubscriber extends InputStream implements Subscriber<ByteBuffer> {
   private final long timeout;
+  private final Thread thread = currentThread();
   private ByteBuffer buffer;
   private boolean ended;
   private Throwable exception;
   private Subscription subscription;
-  private Thread thread = currentThread();
 
   /** Creates the stream with a timeout of 5 seconds. */
   public InputStreamSubscriber() {

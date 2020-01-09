@@ -28,6 +28,35 @@ public class Util {
     return of(new ArrayList<>());
   }
 
+  /**
+   * Returns a blocking <code>Iterable</code> with a request size of 100.
+   *
+   * @param publisher the publisher from which the elements are buffered.
+   * @param <T> the element type.
+   * @return The iterable.
+   * @since 1.2
+   */
+  public static <T> Iterable<T> iterate(final Publisher<T> publisher) {
+    return iterate(publisher, 100);
+  }
+
+  /**
+   * Returns a blocking <code>Iterable</code>.
+   *
+   * @param publisher the publisher from which the elements are buffered.
+   * @param requestSize the size of the requests the subscriber will issue to the publisher.
+   * @param <T> the element type.
+   * @return The iterable.
+   * @since 1.2
+   */
+  public static <T> Iterable<T> iterate(final Publisher<T> publisher, final long requestSize) {
+    final BlockingSubscriber<T> subscriber = new BlockingSubscriber<>(requestSize);
+
+    publisher.subscribe(subscriber);
+
+    return subscriber;
+  }
+
   static void parking(final Object blocker, final long timeout) {
     if (timeout != -1) {
       parkNanos(blocker, timeout * 1000);
