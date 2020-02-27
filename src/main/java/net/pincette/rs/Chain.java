@@ -2,6 +2,7 @@ package net.pincette.rs;
 
 import java.util.function.Function;
 import java.util.function.Predicate;
+import java.util.function.Supplier;
 import org.reactivestreams.Processor;
 import org.reactivestreams.Publisher;
 
@@ -43,6 +44,17 @@ public class Chain<T> {
   }
 
   /**
+   * Appends the result of <code>value</code> to the stream.
+   *
+   * @param value the function that produces the value to emit. It may not be <code>null</code>.
+   * @return the new stream.
+   * @since 1.2.1
+   */
+  public Chain<T> after(final Supplier<T> value) {
+    return map(new After<>(value));
+  }
+
+  /**
    * Puts <code>value</code> before the stream.
    *
    * @param value the value to emit. It may be <code>null</code>.
@@ -50,6 +62,17 @@ public class Chain<T> {
    * @since 1.0
    */
   public Chain<T> before(final T value) {
+    return map(new Before<>(value));
+  }
+
+  /**
+   * Puts the result of <code>value</code> before the stream.
+   *
+   * @param value the function that produces the value to emit. It may not be <code>null</code>.
+   * @return the new stream.
+   * @since 1.2.1
+   */
+  public Chain<T> before(final Supplier<T> value) {
     return map(new Before<>(value));
   }
 
@@ -119,6 +142,18 @@ public class Chain<T> {
    * @since 1.0
    */
   public Chain<T> separate(final T value) {
+    return map(new Separator<>(value));
+  }
+
+  /**
+   * Puts the result of <code>value</code> between the emitted values.
+   *
+   * @param value the function that produces the value to emit between the emitted values. It may
+   *     not be <code>null</code>.
+   * @return The new stream.
+   * @since 1.2.1
+   */
+  public Chain<T> separate(final Supplier<T> value) {
     return map(new Separator<>(value));
   }
 }

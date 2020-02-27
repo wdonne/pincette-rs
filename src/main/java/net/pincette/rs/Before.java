@@ -1,5 +1,7 @@
 package net.pincette.rs;
 
+import java.util.function.Supplier;
+
 /**
  * A processor which emits a given value before all incoming values have been emitted.
  *
@@ -8,10 +10,14 @@ package net.pincette.rs;
  * @since 1.0
  */
 public class Before<T> extends Mapper<T, T> {
-  private final T value;
+  private final Supplier<T> value;
   private boolean first = true;
 
   public Before(final T value) {
+    this(() -> value);
+  }
+
+  public Before(final Supplier<T> value) {
     super(v -> v);
     this.value = value;
   }
@@ -19,7 +25,7 @@ public class Before<T> extends Mapper<T, T> {
   @Override
   public void onComplete() {
     if (first) {
-      super.onNext(value);
+      super.onNext(value.get());
     }
 
     super.onComplete();
@@ -29,7 +35,7 @@ public class Before<T> extends Mapper<T, T> {
   public void onNext(final T value) {
     if (first) {
       first = false;
-      super.onNext(this.value);
+      super.onNext(this.value.get());
     }
 
     super.onNext(value);

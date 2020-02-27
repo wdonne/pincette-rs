@@ -1,5 +1,7 @@
 package net.pincette.rs;
 
+import java.util.function.Supplier;
+
 /**
  * A processor which emits a given value after all incoming values have been emitted.
  *
@@ -8,16 +10,20 @@ package net.pincette.rs;
  * @since 1.0
  */
 public class After<T> extends Mapper<T, T> {
-  private final T value;
+  private final Supplier<T> value;
 
   public After(final T value) {
+    this(() -> value);
+  }
+
+  public After(final Supplier<T> value) {
     super(v -> v);
     this.value = value;
   }
 
   @Override
   public void onComplete() {
-    super.onNext(value);
+    super.onNext(value.get());
     super.onComplete();
   }
 }
