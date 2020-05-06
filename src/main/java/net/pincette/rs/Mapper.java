@@ -24,6 +24,27 @@ public class Mapper<T, R> implements Processor<T, R> {
     this.map = map;
   }
 
+  /**
+   * Request one more element from the upstream.
+   *
+   * @since 1.4
+   */
+  protected void more() {
+    more(1);
+  }
+
+  /**
+   * Request more elements from the upstream.
+   *
+   * @param number the strictly positive number of elements.
+   * @since 1.4
+   */
+  protected void more(final long number) {
+    if (subscription != null && number > 0) {
+      subscription.request(number);
+    }
+  }
+
   public void onComplete() {
     if (subscriber != null) {
       subscriber.onComplete();
@@ -37,8 +58,14 @@ public class Mapper<T, R> implements Processor<T, R> {
   }
 
   public void onNext(final T value) {
-    if (subscriber != null && value != null) {
-      Optional.ofNullable(map.apply(value)).ifPresent(v -> subscriber.onNext(v));
+    if (subscriber != null) {
+      final R newValue = Optional.ofNullable(value).map(this.map).orElse(null);
+
+      if (newValue != null) {
+        subscriber.onNext(newValue);
+      } else {
+        more(); // Keep the upstream alive.
+      }
     }
   }
 

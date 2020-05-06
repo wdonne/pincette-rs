@@ -84,7 +84,17 @@ public class Chain<T> {
    * @since 1.0
    */
   public Chain<T> filter(final Predicate<T> predicate) {
-    return map(v -> predicate.test(v) ? v : null);
+    return map(new Filter<>(predicate));
+  }
+
+  /**
+   * Appends a processor that only emits the first value it receives.
+   *
+   * @return A new chain with the same object type.
+   * @since 1.4
+   */
+  public Chain<T> first() {
+    return map(new First<>());
   }
 
   /**
@@ -95,6 +105,16 @@ public class Chain<T> {
    */
   public Publisher<T> get() {
     return publisher;
+  }
+
+  /**
+   * Appends a processor that only emits the last value it receives.
+   *
+   * @return A new chain with the same object type.
+   * @since 1.4
+   */
+  public Chain<T> last() {
+    return map(new Last<>());
   }
 
   /**
@@ -131,7 +151,7 @@ public class Chain<T> {
    * @since 1.0
    */
   public Chain<T> notFilter(final Predicate<T> predicate) {
-    return map(v -> !predicate.test(v) ? v : null);
+    return map(new NotFilter<>(predicate));
   }
 
   /**
@@ -155,5 +175,17 @@ public class Chain<T> {
    */
   public Chain<T> separate(final Supplier<T> value) {
     return map(new Separator<>(value));
+  }
+
+  /**
+   * Appends a processor that emits values until it receives one that matches <code>predicate</code>
+   * , which is also emitted.
+   *
+   * @param predicate the predicate function.
+   * @return A new chain with the same object type.
+   * @since 1.4
+   */
+  public Chain<T> until(final Predicate<T> predicate) {
+    return map(new Until<>(predicate));
   }
 }

@@ -2,9 +2,12 @@ package net.pincette.rs;
 
 import static java.util.concurrent.locks.LockSupport.park;
 import static java.util.concurrent.locks.LockSupport.parkNanos;
+import static net.pincette.rs.Reducer.reduce;
 import static net.pincette.rs.Source.of;
 
 import java.util.ArrayList;
+import java.util.Optional;
+import java.util.concurrent.CompletionStage;
 import org.reactivestreams.Processor;
 import org.reactivestreams.Publisher;
 
@@ -17,6 +20,13 @@ import org.reactivestreams.Publisher;
 public class Util {
   private Util() {}
 
+  @SuppressWarnings("java:S1905") // For type inference.
+  private static <T> CompletionStage<Optional<T>> element(
+      final Publisher<T> publisher, final Processor<T, T> terminator) {
+    return reduce(subscribe(publisher, terminator), () -> (T) null, (result, value) -> value)
+        .thenApply(Optional::ofNullable);
+  }
+
   /**
    * Returns a publisher that emits no values.
    *
@@ -26,6 +36,18 @@ public class Util {
    */
   public static <T> Publisher<T> empty() {
     return of(new ArrayList<>());
+  }
+
+  /**
+   * Returns the first element <code>publisher</code> emits if there is one.
+   *
+   * @param publisher the given publisher.
+   * @param <T> the value type.
+   * @return The optional first element.
+   * @since 1.4
+   */
+  public static <T> CompletionStage<Optional<T>> first(final Publisher<T> publisher) {
+    return element(publisher, new First<>());
   }
 
   /**
@@ -55,6 +77,18 @@ public class Util {
     publisher.subscribe(subscriber);
 
     return subscriber;
+  }
+
+  /**
+   * Returns the last element <code>publisher</code> emits if there is one.
+   *
+   * @param publisher the given publisher.
+   * @param <T> the value type.
+   * @return The optional first element.
+   * @since 1.4
+   */
+  public static <T> CompletionStage<Optional<T>> last(final Publisher<T> publisher) {
+    return element(publisher, new Last<>());
   }
 
   static void parking(final Object blocker, final long timeout) {

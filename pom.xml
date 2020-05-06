@@ -6,7 +6,7 @@
 
   <groupId>net.pincette</groupId>
   <artifactId>pincette-rs</artifactId>
-  <version>1.3</version>
+  <version>1.4</version>
   <packaging>jar</packaging>
   <name>pincette-rs</name>
   <description>JSON Event Sourcing With Kafka</description>
@@ -52,7 +52,7 @@
     <dependency>
       <groupId>net.pincette</groupId>
       <artifactId>pincette-common</artifactId>
-      <version>1.6.7</version>
+      <version>1.7.1</version>
     </dependency>
     <dependency>
       <groupId>org.reactivestreams</groupId>
@@ -105,7 +105,7 @@
           </additionalJOptions>
           <links>
             <link>http://docs.oracle.com/javase/8/docs/api/</link>
-            <link>https://www.javadoc.io/doc/net.pincette/pincette-common/1.6.7/</link>
+            <link>https://www.javadoc.io/doc/net.pincette/pincette-common/1.7.1/</link>
             <link>https://www.javadoc.io/doc/org.reactivestreams/reactive-streams/1.0.3/</link>
           </links>
         </configuration>
