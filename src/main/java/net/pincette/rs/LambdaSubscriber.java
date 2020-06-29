@@ -56,7 +56,7 @@ public class LambdaSubscriber<T> implements Subscriber<T> {
     }
   }
 
-  public void onError(Throwable t) {
+  public void onError(final Throwable t) {
     if (error != null) {
       tryToDoRethrow(() -> error.accept(t));
     } else {
@@ -64,7 +64,7 @@ public class LambdaSubscriber<T> implements Subscriber<T> {
     }
   }
 
-  public void onNext(T o) {
+  public void onNext(final T o) {
     if (next != null) {
       tryToDoRethrow(() -> next.accept(o));
     }
@@ -72,7 +72,7 @@ public class LambdaSubscriber<T> implements Subscriber<T> {
     subscription.request(1);
   }
 
-  public void onSubscribe(Subscription s) {
+  public void onSubscribe(final Subscription s) {
     if (subscribe != null) {
       tryToDoRethrow(() -> subscribe.accept(s));
     }
