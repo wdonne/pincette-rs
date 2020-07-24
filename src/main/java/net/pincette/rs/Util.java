@@ -80,6 +80,17 @@ public class Util {
   }
 
   /**
+   * Blocks until the publisher is done.
+   *
+   * @param publisher the given publisher.
+   * @param <T> the value type.
+   * @since 1.5
+   */
+  public static <T> void join(final Publisher<T> publisher) {
+    reduce(publisher, (v1, v2) -> v1).toCompletableFuture().join();
+  }
+
+  /**
    * Returns the last element <code>publisher</code> emits if there is one.
    *
    * @param publisher the given publisher.

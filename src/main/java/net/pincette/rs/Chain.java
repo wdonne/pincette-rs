@@ -5,6 +5,7 @@ import java.util.function.Predicate;
 import java.util.function.Supplier;
 import org.reactivestreams.Processor;
 import org.reactivestreams.Publisher;
+import org.reactivestreams.Subscriber;
 
 /**
  * Chains processors after the initial publisher.
@@ -55,6 +56,17 @@ public class Chain<T> {
   }
 
   /**
+   * Emits the values produced by the incoming completion stages in the order the stages arrive. The
+   * streams completes only after the last stage has completed.
+   *
+   * @return the new stream.
+   * @since 1.5
+   */
+  public Chain<T> async() {
+    return map(new Async<>());
+  }
+
+  /**
    * Puts <code>value</code> before the stream.
    *
    * @param value the value to emit. It may be <code>null</code>.
@@ -74,6 +86,16 @@ public class Chain<T> {
    */
   public Chain<T> before(final Supplier<T> value) {
     return map(new Before<>(value));
+  }
+
+  /**
+   * Appends a processor that supports multiple subscribers.
+   *
+   * @return A new chain with the same object type.
+   * @since 1.5
+   */
+  public Chain<T> fanout() {
+    return map(new Fanout<>());
   }
 
   /**
@@ -127,6 +149,19 @@ public class Chain<T> {
    */
   public <R> Chain<R> map(final Processor<T, R> processor) {
     publisher.subscribe(processor);
+
+    return new Chain<>(processor);
+  }
+
+  /**
+   * Appends <code>processor</code> to the chain.
+   *
+   * @param processor the given processor.
+   * @return The new chain.
+   * @since 1.5
+   */
+  public Chain<T> map(final AsyncProcessor<T> processor) {
+    publisher.subscribe((Subscriber<? super T>) processor);
 
     return new Chain<>(processor);
   }
