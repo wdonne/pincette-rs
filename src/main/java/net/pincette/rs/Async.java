@@ -6,7 +6,7 @@ import org.reactivestreams.Subscriber;
 import org.reactivestreams.Subscription;
 
 /**
- * Emits the values produced by the stages in the order the stages arrive. The streams completes
+ * Emits the values produced by the stages in the order the stages arrive. The stream completes
  * only after the last stage has completed.
  *
  * @param <T> the value type.

@@ -1,5 +1,6 @@
 package net.pincette.rs;
 
+import java.util.concurrent.CompletionStage;
 import java.util.function.Function;
 import java.util.function.Predicate;
 import java.util.function.Supplier;
@@ -61,7 +62,9 @@ public class Chain<T> {
    *
    * @return the new stream.
    * @since 1.5
+   * @deprecated Use {@link #mapAsync(Function)} instead.
    */
+  @Deprecated
   public Chain<T> async() {
     return map(new Async<>());
   }
@@ -176,6 +179,26 @@ public class Chain<T> {
    */
   public <R> Chain<R> map(final Function<T, R> function) {
     return map(new Mapper<>(function));
+  }
+
+  /**
+   * Appends a processor with the mapping function, which transforms the objects. The completion
+   * stages are executed in the order of the stream, which completes only after the last stage is
+   * completed.
+   *
+   * @param function the mapping function.
+   * @param <R> the object type for the new chain.
+   * @return The new chain.
+   * @since 1.5.1
+   */
+  public <R> Chain<R> mapAsync(final Function<T, CompletionStage<R>> function) {
+    final Processor<T, CompletionStage<R>> processor = new Mapper<>(function);
+    final AsyncProcessor<R> asyncProcessor = new Async<>();
+
+    publisher.subscribe(processor);
+    processor.subscribe(asyncProcessor);
+
+    return new Chain<>(asyncProcessor);
   }
 
   /**
