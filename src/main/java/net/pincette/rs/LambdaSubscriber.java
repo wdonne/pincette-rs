@@ -65,11 +65,13 @@ public class LambdaSubscriber<T> implements Subscriber<T> {
   }
 
   public void onNext(final T o) {
-    if (next != null) {
-      tryToDoRethrow(() -> next.accept(o));
-    }
+    if (subscription != null) {
+      if (next != null) {
+        tryToDoRethrow(() -> next.accept(o));
+      }
 
-    subscription.request(1);
+      subscription.request(1);
+    }
   }
 
   public void onSubscribe(final Subscription s) {

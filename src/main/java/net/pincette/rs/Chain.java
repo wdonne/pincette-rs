@@ -64,7 +64,7 @@ public class Chain<T> {
    * @since 1.5
    * @deprecated Use {@link #mapAsync(Function)} instead.
    */
-  @Deprecated
+  @Deprecated(since = "1.5.1")
   public Chain<T> async() {
     return map(new Async<>());
   }
@@ -89,16 +89,6 @@ public class Chain<T> {
    */
   public Chain<T> before(final Supplier<T> value) {
     return map(new Before<>(value));
-  }
-
-  /**
-   * Appends a processor that supports multiple subscribers.
-   *
-   * @return A new chain with the same object type.
-   * @since 1.5
-   */
-  public Chain<T> fanout() {
-    return map(new Fanout<>());
   }
 
   /**

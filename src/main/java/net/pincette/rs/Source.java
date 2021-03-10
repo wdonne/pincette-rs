@@ -1,5 +1,7 @@
 package net.pincette.rs;
 
+import static java.util.Arrays.asList;
+
 import java.util.List;
 import org.reactivestreams.Publisher;
 import org.reactivestreams.Subscriber;
@@ -34,6 +36,10 @@ public class Source<T> implements Publisher<T> {
     return new Source<>(values);
   }
 
+  public static <T> Publisher<T> of(final T... values) {
+    return new Source<>(asList(values.clone()));
+  }
+
   public void subscribe(final Subscriber<? super T> subscriber) {
     this.subscriber = subscriber;
     position = 0;
@@ -51,8 +57,8 @@ public class Source<T> implements Publisher<T> {
       }
 
       if (position >= list.size() && !complete) {
-        subscriber.onComplete();
         complete = true;
+        subscriber.onComplete();
       }
     }
   }

@@ -1,7 +1,10 @@
 package net.pincette.rs;
 
-import java.util.Optional;
+import static java.util.Optional.ofNullable;
+import static net.pincette.util.Util.tryToGet;
+
 import java.util.function.Function;
+import net.pincette.function.SideEffect;
 import org.reactivestreams.Processor;
 import org.reactivestreams.Subscriber;
 import org.reactivestreams.Subscription;
@@ -16,12 +19,22 @@ import org.reactivestreams.Subscription;
  */
 public class Mapper<T, R> implements Processor<T, R> {
   private final Function<T, R> map;
-  private long initialRequested;
+  protected Subscription subscription;
+  private boolean error;
   private Subscriber<? super R> subscriber;
-  private Subscription subscription;
 
   public Mapper(final Function<T, R> map) {
     this.map = map;
+  }
+
+  /**
+   * With this method a subclass can regulate the backpressure.
+   *
+   * @param number the strictly positive number of elements.
+   * @since 1.6
+   */
+  protected boolean canRequestMore(long number) {
+    return true;
   }
 
   /**
@@ -34,24 +47,41 @@ public class Mapper<T, R> implements Processor<T, R> {
   }
 
   /**
-   * Request more elements from the upstream.
+   * Request more elements from the upstream. This will only have an effect wheb there is a
+   * subscription and the stream is not in an error state.
    *
    * @param number the strictly positive number of elements.
    * @since 1.4
    */
   protected void more(final long number) {
-    if (subscription != null && number > 0) {
+    if (subscription != null && number > 0 && !error && canRequestMore(number)) {
       subscription.request(number);
     }
   }
 
+  private R newValue(final T value) {
+    return ofNullable(value)
+        .flatMap(
+            v ->
+                tryToGet(
+                    () -> map.apply(v),
+                    e -> SideEffect.<R>run(() -> onError(e)).andThenGet(() -> null)))
+        .orElse(null);
+  }
+
+  private void notifySubscriber() {
+    subscriber.onSubscribe(new Backpressure());
+  }
+
   public void onComplete() {
-    if (subscriber != null) {
+    if (subscriber != null && !error) {
       subscriber.onComplete();
     }
   }
 
   public void onError(final Throwable t) {
+    setError(true);
+
     if (subscriber != null) {
       subscriber.onError(t);
     }
@@ -59,7 +89,7 @@ public class Mapper<T, R> implements Processor<T, R> {
 
   public void onNext(final T value) {
     if (subscriber != null) {
-      final R newValue = Optional.ofNullable(value).map(this.map).orElse(null);
+      final R newValue = newValue(value);
 
       if (newValue != null) {
         subscriber.onNext(newValue);
@@ -72,17 +102,20 @@ public class Mapper<T, R> implements Processor<T, R> {
   public void onSubscribe(final Subscription subscription) {
     this.subscription = subscription;
 
-    if (initialRequested > 0) {
-      subscription.request(initialRequested);
-      initialRequested = 0;
+    if (subscriber != null) {
+      notifySubscriber();
     }
+  }
+
+  protected void setError(final boolean value) {
+    error = value;
   }
 
   public void subscribe(final Subscriber<? super R> subscriber) {
     this.subscriber = subscriber;
 
-    if (subscriber != null) {
-      subscriber.onSubscribe(new Backpressure());
+    if (subscriber != null && subscription != null) {
+      notifySubscriber();
     }
   }
 
@@ -93,12 +126,8 @@ public class Mapper<T, R> implements Processor<T, R> {
       }
     }
 
-    public void request(final long l) {
-      if (subscription != null) {
-        subscription.request(l);
-      } else {
-        initialRequested = l;
-      }
+    public void request(final long number) {
+      more(number);
     }
   }
 }

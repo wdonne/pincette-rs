@@ -1,24 +1,42 @@
 package net.pincette.rs;
 
-import java.util.ArrayList;
+import static java.util.Arrays.asList;
+
 import java.util.List;
-import org.reactivestreams.Processor;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ConcurrentMap;
 import org.reactivestreams.Subscriber;
 import org.reactivestreams.Subscription;
 
 /**
- * A processor that accepts multiple subscribers to all of which it passes all events. It passes its
- * own subscription to all subscribers.
+ * A subscriber that accepts multiple subscribers to all of which it passes all events.
  *
  * @param <T> the value type.
  * @author Werner Donn\u00e9
- * @since 1.5
+ * @since 1.6
  */
-public class Fanout<T> implements Processor<T, T> {
-  private final List<Subscriber<? super T>> subscribers = new ArrayList<>();
+public class Fanout<T> implements Subscriber<T> {
+  private final ConcurrentMap<Backpressure, Boolean> requests = new ConcurrentHashMap<>();
+  private final List<Subscriber<T>> subscribers;
+  private boolean complete;
   private Subscription subscription;
 
+  private Fanout(final List<Subscriber<T>> subscribers) {
+    this.subscribers = subscribers;
+    subscribers.forEach(s -> s.onSubscribe(new Backpressure()));
+  }
+
+  public static <T> Subscriber<T> of(final List<Subscriber<T>> subscribers) {
+    return new Fanout<>(subscribers);
+  }
+
+  @SafeVarargs
+  public static <T> Subscriber<T> of(final Subscriber<T>... subscribers) {
+    return new Fanout<>(asList(subscribers));
+  }
+
   public void onComplete() {
+    complete = true;
     subscribers.forEach(Subscriber::onComplete);
   }
 
@@ -27,19 +45,32 @@ public class Fanout<T> implements Processor<T, T> {
   }
 
   public void onNext(final T t) {
-    subscribers.forEach(s -> s.onNext(t));
+    if (!complete) {
+      subscribers.forEach(s -> s.onNext(t));
+    }
   }
 
   public void onSubscribe(final Subscription subscription) {
     this.subscription = subscription;
-    subscribers.forEach(s -> s.onSubscribe(subscription));
+    subscription.request(1);
   }
 
-  public void subscribe(final Subscriber<? super T> subscriber) {
-    subscribers.add(subscriber);
+  private class Backpressure implements Subscription {
+    public void cancel() {
+      if (subscription != null) {
+        subscription.cancel();
+      }
+    }
 
-    if (subscription != null) {
-      subscriber.onSubscribe(subscription);
+    public void request(final long l) {
+      if (!complete && subscription != null) {
+        requests.put(this, true);
+
+        if (requests.size() == subscribers.size()) {
+          requests.clear();
+          subscription.request(1);
+        }
+      }
     }
   }
 }

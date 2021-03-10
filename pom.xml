@@ -6,7 +6,7 @@
 
   <groupId>net.pincette</groupId>
   <artifactId>pincette-rs</artifactId>
-  <version>1.5.2</version>
+  <version>1.6</version>
   <packaging>jar</packaging>
   <name>pincette-rs</name>
   <description>JSON Event Sourcing With Kafka</description>
@@ -55,12 +55,18 @@
     <dependency>
       <groupId>net.pincette</groupId>
       <artifactId>pincette-common</artifactId>
-      <version>1.7.7</version>
+      <version>1.7.9</version>
     </dependency>
     <dependency>
       <groupId>org.reactivestreams</groupId>
       <artifactId>reactive-streams</artifactId>
       <version>1.0.3</version>
+    </dependency>
+    <dependency>
+      <groupId>org.junit.jupiter</groupId>
+      <artifactId>junit-jupiter</artifactId>
+      <version>5.7.0</version>
+      <scope>test</scope>
     </dependency>
   </dependencies>
 
@@ -109,7 +115,7 @@
           </additionalJOptions>
           <links>
             <link>http://docs.oracle.com/javase/8/docs/api/</link>
-            <link>https://www.javadoc.io/doc/net.pincette/pincette-common/1.7.7/</link>
+            <link>https://www.javadoc.io/doc/net.pincette/pincette-common/1.7.9/</link>
             <link>https://www.javadoc.io/doc/org.reactivestreams/reactive-streams/1.0.3/</link>
           </links>
           <sourceFileExcludes>
@@ -154,6 +160,41 @@
           </jdkToolchain>
           <source>1.8</source>
           <target>1.8</target>
+        </configuration>
+      </plugin>
+      <plugin>
+        <artifactId>maven-surefire-plugin</artifactId>
+        <version>2.22.2</version>
+        <configuration>
+          <forkCount>0</forkCount>
+        </configuration>
+      </plugin>
+      <plugin>
+        <artifactId>maven-failsafe-plugin</artifactId>
+        <version>2.22.2</version>
+      </plugin>
+      <plugin>
+        <groupId>pl.project13.maven</groupId>
+        <artifactId>git-commit-id-plugin</artifactId>
+        <version>4.0.3</version>
+        <executions>
+          <execution>
+            <id>get-the-git-infos</id>
+            <goals>
+              <goal>revision</goal>
+            </goals>
+            <phase>initialize</phase>
+          </execution>
+        </executions>
+        <configuration>
+          <generateGitPropertiesFile>true</generateGitPropertiesFile>
+          <generateGitPropertiesFilename>${project.build.outputDirectory}/git.properties
+          </generateGitPropertiesFilename>
+          <includeOnlyProperties>
+            <includeOnlyProperty>^git.build.(time|version)$</includeOnlyProperty>
+            <includeOnlyProperty>^git.commit.id.(abbrev|full)$</includeOnlyProperty>
+          </includeOnlyProperties>
+          <commitIdGenerationMode>full</commitIdGenerationMode>
         </configuration>
       </plugin>
     </plugins>

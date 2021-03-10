@@ -19,10 +19,11 @@ public class Until<T> extends PassThrough<T> {
 
   @Override
   public void onNext(final T value) {
-    super.onNext(!done ? value : null);
-
     if (!done) {
       done = predicate.test(value);
+      super.onNext(value);
+    } else {
+      super.onComplete();
     }
   }
 }

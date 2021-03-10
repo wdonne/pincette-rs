@@ -11,6 +11,7 @@ import java.util.function.Supplier;
  */
 public class After<T> extends Mapper<T, T> {
   private final Supplier<T> value;
+  private boolean extra;
 
   public After(final T value) {
     this(() -> value);
@@ -22,7 +23,19 @@ public class After<T> extends Mapper<T, T> {
   }
 
   @Override
+  protected boolean canRequestMore(long n) {
+    if (extra) {
+      extra = false;
+
+      return false;
+    }
+
+    return true;
+  }
+
+  @Override
   public void onComplete() {
+    extra = true;
     super.onNext(value.get());
     super.onComplete();
   }

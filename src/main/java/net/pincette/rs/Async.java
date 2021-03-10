@@ -6,8 +6,8 @@ import org.reactivestreams.Subscriber;
 import org.reactivestreams.Subscription;
 
 /**
- * Emits the values produced by the stages in the order the stages arrive. The stream completes
- * only after the last stage has completed.
+ * Emits the values produced by the stages in the order the stages arrive. The stream completes only
+ * after the last stage has completed.
  *
  * @param <T> the value type.
  * @author Werner Donn\u00e9
@@ -40,6 +40,8 @@ public class Async<T> implements AsyncProcessor<T> {
 
   public void onNext(final CompletionStage<T> stage) {
     if (subscriber != null) {
+      final boolean first = last == null;
+
       last =
           last == null
               ? stage
@@ -48,7 +50,7 @@ public class Async<T> implements AsyncProcessor<T> {
                       SideEffect.<CompletionStage<T>>run(() -> subscriber.onNext(value))
                           .andThenGet(() -> stage));
 
-      if (subscription != null) {
+      if (first && subscription != null) {
         subscription.request(1);
       }
     }

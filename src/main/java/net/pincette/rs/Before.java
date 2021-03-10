@@ -11,6 +11,7 @@ import java.util.function.Supplier;
  */
 public class Before<T> extends Mapper<T, T> {
   private final Supplier<T> value;
+  private boolean extra;
   private boolean first = true;
 
   public Before(final T value) {
@@ -20,6 +21,17 @@ public class Before<T> extends Mapper<T, T> {
   public Before(final Supplier<T> value) {
     super(v -> v);
     this.value = value;
+  }
+
+  @Override
+  protected boolean canRequestMore(long n) {
+    if (extra) {
+      extra = false;
+
+      return false;
+    }
+
+    return true;
   }
 
   @Override
@@ -35,6 +47,7 @@ public class Before<T> extends Mapper<T, T> {
   public void onNext(final T value) {
     if (first) {
       first = false;
+      extra = true;
       super.onNext(this.value.get());
     }
 

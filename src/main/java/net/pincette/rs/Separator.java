@@ -11,6 +11,7 @@ import java.util.function.Supplier;
  */
 public class Separator<T> extends Mapper<T, T> {
   private final Supplier<T> value;
+  private boolean extra;
   private boolean first = true;
 
   public Separator(final T value) {
@@ -23,10 +24,22 @@ public class Separator<T> extends Mapper<T, T> {
   }
 
   @Override
+  protected boolean canRequestMore(long n) {
+    if (extra) {
+      extra = false;
+
+      return false;
+    }
+
+    return true;
+  }
+
+  @Override
   public void onNext(final T value) {
     if (first) {
       first = false;
     } else {
+      extra = true;
       super.onNext(this.value.get());
     }
 
