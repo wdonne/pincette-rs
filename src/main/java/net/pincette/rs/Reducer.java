@@ -1,5 +1,8 @@
 package net.pincette.rs;
 
+import static net.pincette.util.Util.rethrow;
+import static net.pincette.util.Util.tryToDo;
+
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionStage;
@@ -71,7 +74,13 @@ public class Reducer {
 
     publisher.subscribe(
         new LambdaSubscriber<>(
-            value -> state.set(accumulator.apply(state.value, value)),
+            value ->
+                tryToDo(
+                    () -> state.set(accumulator.apply(state.value, value)),
+                    e -> {
+                      future.completeExceptionally(e);
+                      rethrow(e);
+                    }),
             () -> future.complete(state.value),
             future::completeExceptionally));
 
