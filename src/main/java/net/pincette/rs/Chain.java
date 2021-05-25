@@ -92,6 +92,18 @@ public class Chain<T> {
   }
 
   /**
+   * Buffers a number of values. It always requests the number of values from the publisher that
+   * equals the buffer <code>size</code>.
+   *
+   * @param size the buffer size.
+   * @return the new stream.
+   * @since 1.7
+   */
+  public Chain<T> buffer(final int size) {
+    return map(new Buffer<>(size));
+  }
+
+  /**
    * Appends a processor that filters objects using the <code>predicate</code> function.
    *
    * @param predicate the predicate function.

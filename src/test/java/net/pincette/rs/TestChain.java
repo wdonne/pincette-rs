@@ -45,6 +45,19 @@ class TestChain {
   }
 
   @Test
+  @DisplayName("chain buffer")
+  void buffer() {
+    final List<Integer> values = list(0, 1, 2, 3, 4, 5, 6, 7, 8, 9);
+
+    runTest(values, () -> with(of(values)).buffer(1).get());
+    runTest(values, () -> with(of(values)).buffer(2).get());
+    runTest(values, () -> with(of(values)).buffer(3).get());
+    runTest(values, () -> with(of(values)).buffer(8).get());
+    runTest(values, () -> with(of(values)).buffer(10).get());
+    runTest(values, () -> with(of(values)).buffer(20).get());
+  }
+
+  @Test
   @DisplayName("chain combinations")
   void combinations() {
     runTest(list(-10, -1, 1, -1, 2), () -> with(of(list(1, 2))).before(-10).separate(-1).get());
