@@ -38,6 +38,19 @@ public class Mapper<T, R> implements Processor<T, R> {
   }
 
   /**
+   * Cancels the subscription and completes the stream.
+   *
+   * @since 1.7.1
+   */
+  protected void complete() {
+    if (subscription != null) {
+      subscription.cancel();
+    }
+
+    onComplete();
+  }
+
+  /**
    * Request one more element from the upstream.
    *
    * @since 1.4

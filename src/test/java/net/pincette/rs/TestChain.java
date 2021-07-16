@@ -14,6 +14,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.CountDownLatch;
 import java.util.function.Consumer;
+import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.reactivestreams.Processor;
@@ -128,12 +129,14 @@ class TestChain {
   @DisplayName("chain first")
   void first() {
     runTest(list(1), () -> with(of(list(1, 2, 3, 4))).first().get());
+    runTest(list(), () -> with(of(list())).first().get());
   }
 
   @Test
   @DisplayName("chain last")
   void last() {
     runTest(list(4), () -> with(of(list(1, 2, 3, 4))).last().get());
+    runTest(list(), () -> with(of(list())).last().get());
   }
 
   @Test

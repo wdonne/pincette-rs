@@ -23,7 +23,7 @@ public class Until<T> extends PassThrough<T> {
       done = predicate.test(value);
       super.onNext(value);
     } else {
-      super.onComplete();
+      complete();
     }
   }
 }

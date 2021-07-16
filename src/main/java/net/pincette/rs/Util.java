@@ -4,6 +4,7 @@ import static java.util.Collections.emptyList;
 import static java.util.concurrent.CompletableFuture.completedFuture;
 import static java.util.concurrent.locks.LockSupport.park;
 import static java.util.concurrent.locks.LockSupport.parkNanos;
+import static net.pincette.rs.Chain.with;
 import static net.pincette.rs.Reducer.reduce;
 import static net.pincette.rs.Source.of;
 import static net.pincette.util.ScheduledCompletionStage.composeAsyncAfter;
@@ -44,12 +45,82 @@ public class Util {
     return asListAsync(publisher).toCompletableFuture().join();
   }
 
+  /**
+   * Returns the published values as a list.
+   *
+   * @param publisher the publisher.
+   * @param <T> the value type.
+   * @return The generated list.
+   * @since 1.6
+   */
   public static <T> CompletionStage<List<T>> asListAsync(final Publisher<T> publisher) {
     final CompletableFuture<List<T>> future = new CompletableFuture<>();
 
     publisher.subscribe(completerList(future));
 
     return future;
+  }
+
+  /**
+   * Returns the first value. This function will block when needed.
+   *
+   * @param publisher the publisher.
+   * @param <T> the value type.
+   * @return The value.
+   * @since 1.7.1
+   */
+  public static <T> T asValue(final Publisher<T> publisher) {
+    return asValueAsync(publisher).toCompletableFuture().join();
+  }
+
+  /**
+   * Completes with the first emitted value.
+   *
+   * @param publisher the publisher.
+   * @param <T> the value type.
+   * @return The value.
+   * @since 1.7.1
+   */
+  public static <T> CompletionStage<T> asValueAsync(final Publisher<T> publisher) {
+    final CompletableFuture<T> future = new CompletableFuture<>();
+
+    with(publisher).first().get().subscribe(completerFirst(future));
+
+    return future;
+  }
+
+  /**
+   * Waits until the empty publisher completes.
+   *
+   * @param publisher the publisher.
+   * @since 1.7.1
+   */
+  public static void empty(final Publisher<Void> publisher) {
+    emptyAsync(publisher).toCompletableFuture().join();
+  }
+
+  /**
+   * Completes when the empty publisher completes.
+   *
+   * @param publisher the publisher.
+   * @return The empty completion stage.
+   * @since 1.7.1
+   */
+  public static CompletionStage<Void> emptyAsync(final Publisher<Void> publisher) {
+    final CompletableFuture<Void> future = new CompletableFuture<>();
+
+    publisher.subscribe(completerEmpty(future));
+
+    return future;
+  }
+
+  private static LambdaSubscriber<Void> completerEmpty(final CompletableFuture<Void> future) {
+    return new LambdaSubscriber<>(
+        v -> {}, () -> future.complete(null), future::completeExceptionally);
+  }
+
+  private static <T> LambdaSubscriber<T> completerFirst(final CompletableFuture<T> future) {
+    return new LambdaSubscriber<>(future::complete, () -> {}, future::completeExceptionally);
   }
 
   private static <T> LambdaSubscriber<T> completerList(final CompletableFuture<List<T>> future) {

@@ -1,7 +1,7 @@
 package net.pincette.rs;
 
 import java.util.concurrent.CompletionStage;
-import net.pincette.function.SideEffect;
+import java.util.function.Supplier;
 import org.reactivestreams.Subscriber;
 import org.reactivestreams.Subscription;
 
@@ -14,18 +14,14 @@ import org.reactivestreams.Subscription;
  * @since 1.5
  */
 public class Async<T> implements AsyncProcessor<T> {
-  private CompletionStage<T> last;
+  private CompletionStage<Void> last;
   private Subscriber<? super T> subscriber;
   private Subscription subscription;
 
   public void onComplete() {
     if (subscriber != null) {
       if (last != null) {
-        last.thenAccept(
-            value -> {
-              subscriber.onNext(value);
-              subscriber.onComplete();
-            });
+        last.thenRun(subscriber::onComplete);
       } else {
         subscriber.onComplete();
       }
@@ -40,19 +36,9 @@ public class Async<T> implements AsyncProcessor<T> {
 
   public void onNext(final CompletionStage<T> stage) {
     if (subscriber != null) {
-      final boolean first = last == null;
+      final Supplier<CompletionStage<Void>> next = () -> stage.thenAccept(subscriber::onNext);
 
-      last =
-          last == null
-              ? stage
-              : last.thenComposeAsync(
-                  value ->
-                      SideEffect.<CompletionStage<T>>run(() -> subscriber.onNext(value))
-                          .andThenGet(() -> stage));
-
-      if (first && subscription != null) {
-        subscription.request(1);
-      }
+      last = last == null ? next.get() : last.thenComposeAsync(value -> next.get());
     }
   }
 

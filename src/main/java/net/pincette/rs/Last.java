@@ -14,8 +14,9 @@ public class Last<T> extends PassThrough<T> {
   public void onComplete() {
     if (lastValue != null) {
       super.onNext(lastValue);
-      super.onComplete();
     }
+
+    super.onComplete();
   }
 
   @Override
