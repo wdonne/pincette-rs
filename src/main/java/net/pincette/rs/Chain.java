@@ -1,5 +1,6 @@
 package net.pincette.rs;
 
+import java.util.List;
 import java.util.concurrent.CompletionStage;
 import java.util.function.Function;
 import java.util.function.Predicate;
@@ -54,19 +55,6 @@ public class Chain<T> {
    */
   public Chain<T> after(final Supplier<T> value) {
     return map(new After<>(value));
-  }
-
-  /**
-   * Emits the values produced by the incoming completion stages in the order the stages arrive. The
-   * streams completes only after the last stage has completed.
-   *
-   * @return the new stream.
-   * @since 1.5
-   * @deprecated Use {@link #mapAsync(Function)} instead.
-   */
-  @Deprecated(since = "1.5.1")
-  public Chain<T> async() {
-    return map(new Async<>());
   }
 
   /**
@@ -212,6 +200,18 @@ public class Chain<T> {
    */
   public Chain<T> notFilter(final Predicate<T> predicate) {
     return map(new NotFilter<>(predicate));
+  }
+
+  /**
+   * Buffers a number of values. It always requests the number of values from the publisher that
+   * equals the buffer <code>size</code>. It emits the buffered values as a list.
+   *
+   * @param size the buffer size.
+   * @return the new stream.
+   * @since 2.0
+   */
+  public Chain<List<T>> per(final int size) {
+    return map(new Per<>(size));
   }
 
   /**

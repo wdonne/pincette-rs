@@ -14,7 +14,6 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.CountDownLatch;
 import java.util.function.Consumer;
-import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.reactivestreams.Processor;
@@ -154,6 +153,17 @@ class TestChain {
   @DisplayName("chain notFilter")
   void notFilter() {
     runTest(list(1, 3), () -> with(of(list(1, 2, 3, 4))).notFilter(v -> v % 2 == 0).get());
+  }
+
+  @Test
+  @DisplayName("chain per")
+  void per() {
+    final List<Integer> values = list(0, 1, 2, 3, 4);
+
+    runTest(list(list(0), list(1), list(2), list(3), list(4)), () -> with(of(values)).per(1).get());
+    runTest(list(list(0, 1), list(2, 3), list(4)), () -> with(of(values)).per(2).get());
+    runTest(list(list(0, 1, 2), list(3, 4)), () -> with(of(values)).per(3).get());
+    runTest(list(values), () -> with(of(values)).per(10).get());
   }
 
   @Test
