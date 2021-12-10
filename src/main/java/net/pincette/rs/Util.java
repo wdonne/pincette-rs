@@ -74,7 +74,7 @@ public class Util {
   }
 
   /**
-   * Completes with the first emitted value.
+   * Completes with the first emitted value or <code>null</code> if there was no such value.
    *
    * @param publisher the publisher.
    * @param <T> the value type.
@@ -120,7 +120,8 @@ public class Util {
   }
 
   private static <T> LambdaSubscriber<T> completerFirst(final CompletableFuture<T> future) {
-    return new LambdaSubscriber<>(future::complete, () -> {}, future::completeExceptionally);
+    return new LambdaSubscriber<>(
+        future::complete, () -> future.complete(null), future::completeExceptionally);
   }
 
   private static <T> LambdaSubscriber<T> completerList(final CompletableFuture<List<T>> future) {
