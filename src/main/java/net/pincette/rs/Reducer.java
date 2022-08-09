@@ -6,11 +6,11 @@ import static net.pincette.util.Util.tryToDo;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionStage;
+import java.util.concurrent.Flow.Publisher;
 import java.util.function.BiFunction;
 import java.util.function.BinaryOperator;
 import java.util.function.Consumer;
 import java.util.function.Supplier;
-import org.reactivestreams.Publisher;
 
 /**
  * Functions to reduce a publisher and return the result as a {@link

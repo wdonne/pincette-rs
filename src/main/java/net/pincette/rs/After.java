@@ -1,5 +1,6 @@
 package net.pincette.rs;
 
+import java.util.concurrent.Flow.Processor;
 import java.util.function.Supplier;
 
 /**
@@ -11,7 +12,7 @@ import java.util.function.Supplier;
  */
 public class After<T> extends Mapper<T, T> {
   private final Supplier<T> value;
-  private boolean extra;
+  private boolean completed;
 
   public After(final T value) {
     this(() -> value);
@@ -22,21 +23,25 @@ public class After<T> extends Mapper<T, T> {
     this.value = value;
   }
 
+  public static <T> Processor<T, T> after(final T value) {
+    return new After<>(value);
+  }
+
+  public static <T> Processor<T, T> after(final Supplier<T> value) {
+    return new After<>(value);
+  }
+
   @Override
   protected boolean canRequestMore(long n) {
-    if (extra) {
-      extra = false;
-
-      return false;
-    }
-
-    return true;
+    return !completed;
   }
 
   @Override
   public void onComplete() {
-    extra = true;
-    super.onNext(value.get());
-    super.onComplete();
+    if (!completed) {
+      completed = true;
+      super.onNext(value.get());
+      super.onComplete();
+    }
   }
 }

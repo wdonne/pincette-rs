@@ -1,5 +1,7 @@
 package net.pincette.rs;
 
+import java.util.concurrent.Flow.Processor;
+
 /**
  * Emits the last value it receives and then completes the stream.
  *
@@ -9,6 +11,10 @@ package net.pincette.rs;
  */
 public class Last<T> extends PassThrough<T> {
   private T lastValue;
+
+  public static <T> Processor<T, T> last() {
+    return new Last<>();
+  }
 
   @Override
   public void onComplete() {

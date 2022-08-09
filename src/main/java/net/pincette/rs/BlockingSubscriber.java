@@ -10,11 +10,11 @@ import java.util.NoSuchElementException;
 import java.util.Queue;
 import java.util.Spliterator;
 import java.util.concurrent.ConcurrentLinkedQueue;
+import java.util.concurrent.Flow.Subscriber;
+import java.util.concurrent.Flow.Subscription;
 import java.util.function.Consumer;
 import net.pincette.function.SideEffect;
 import net.pincette.util.Util.GeneralException;
-import org.reactivestreams.Subscriber;
-import org.reactivestreams.Subscription;
 
 /**
  * With this class a publisher can be wrapped in a blocking iterable. It buffers the received
@@ -52,6 +52,14 @@ public class BlockingSubscriber<T> implements Subscriber<T>, Iterable<T> {
     this.requestSize = requestSize;
   }
 
+  public static <T> BlockingSubscriber<T> blockingSubscriber() {
+    return new BlockingSubscriber<>();
+  }
+
+  public static <T> BlockingSubscriber<T> blockingSubscriber(final long requestSize) {
+    return new BlockingSubscriber<>(requestSize);
+  }
+
   /**
    * Returns an immutable iterator over the published elements. The iterator will block when there
    * are no elements while the publisher isn't completed yet.
@@ -75,13 +83,21 @@ public class BlockingSubscriber<T> implements Subscriber<T>, Iterable<T> {
   }
 
   public void onError(final Throwable throwable) {
+    if (throwable == null) {
+      throw new NullPointerException("Can't throw null.");
+    }
+
     complete = true;
     unpark(thread);
     throw new GeneralException(throwable);
   }
 
-  public void onNext(T t) {
-    queue.add(t);
+  public void onNext(T value) {
+    if (value == null) {
+      throw new NullPointerException("Can't emit null.");
+    }
+
+    queue.add(value);
 
     if (queue.size() >= requestSize) {
       unpark(thread);
@@ -89,8 +105,16 @@ public class BlockingSubscriber<T> implements Subscriber<T>, Iterable<T> {
   }
 
   public void onSubscribe(final Subscription subscription) {
-    this.subscription = subscription;
-    more();
+    if (subscription == null) {
+      throw new NullPointerException("A subscription can't be null.");
+    }
+
+    if (this.subscription != null) {
+      subscription.cancel();
+    } else {
+      this.subscription = subscription;
+      more();
+    }
   }
 
   /**

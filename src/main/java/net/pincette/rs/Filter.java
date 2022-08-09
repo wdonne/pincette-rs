@@ -1,5 +1,6 @@
 package net.pincette.rs;
 
+import java.util.concurrent.Flow.Processor;
 import java.util.function.Predicate;
 
 /**
@@ -17,5 +18,9 @@ public class Filter<T> extends Mapper<T, T> {
    */
   public Filter(final Predicate<T> predicate) {
     super(v -> predicate.test(v) ? v : null);
+  }
+
+  public static <T> Processor<T, T> filter(final Predicate<T> predicate) {
+    return new Filter<>(predicate);
   }
 }

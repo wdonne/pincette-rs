@@ -2,11 +2,11 @@ package net.pincette.rs;
 
 import static net.pincette.util.Util.tryToDoRethrow;
 
+import java.util.concurrent.Flow.Subscriber;
+import java.util.concurrent.Flow.Subscription;
 import net.pincette.function.ConsumerWithException;
 import net.pincette.function.RunnableWithException;
 import net.pincette.util.Util.GeneralException;
-import org.reactivestreams.Subscriber;
-import org.reactivestreams.Subscription;
 
 /**
  * Provides constructors to which lambdas can be given. It requests values from the received
@@ -50,6 +50,30 @@ public class LambdaSubscriber<T> implements Subscriber<T> {
     this.subscribe = subscribe;
   }
 
+  public static <T> Subscriber<T> lambdaSubscriber(final ConsumerWithException<T> next) {
+    return new LambdaSubscriber<>(next);
+  }
+
+  public static <T> Subscriber<T> lambdaSubscriber(
+      final ConsumerWithException<T> next, final RunnableWithException complete) {
+    return new LambdaSubscriber<>(next, complete);
+  }
+
+  public static <T> Subscriber<T> lambdaSubscriber(
+      final ConsumerWithException<T> next,
+      final RunnableWithException complete,
+      final ConsumerWithException<Throwable> error) {
+    return new LambdaSubscriber<>(next, complete, error);
+  }
+
+  public static <T> Subscriber<T> lambdaSubscriber(
+      final ConsumerWithException<T> next,
+      final RunnableWithException complete,
+      final ConsumerWithException<Throwable> error,
+      final ConsumerWithException<Subscription> subscribe) {
+    return new LambdaSubscriber<>(next, complete, error, subscribe);
+  }
+
   public void onComplete() {
     if (complete != null) {
       tryToDoRethrow(complete);
@@ -57,6 +81,10 @@ public class LambdaSubscriber<T> implements Subscriber<T> {
   }
 
   public void onError(final Throwable t) {
+    if (t == null) {
+      throw new NullPointerException("Can't throw null.");
+    }
+
     if (error != null) {
       tryToDoRethrow(() -> error.accept(t));
     } else {
@@ -65,6 +93,10 @@ public class LambdaSubscriber<T> implements Subscriber<T> {
   }
 
   public void onNext(final T o) {
+    if (o == null) {
+      throw new NullPointerException("Can't emit null.");
+    }
+
     if (subscription != null) {
       if (next != null) {
         tryToDoRethrow(() -> next.accept(o));
@@ -75,11 +107,19 @@ public class LambdaSubscriber<T> implements Subscriber<T> {
   }
 
   public void onSubscribe(final Subscription s) {
-    if (subscribe != null) {
-      tryToDoRethrow(() -> subscribe.accept(s));
+    if (s == null) {
+      throw new NullPointerException("A subscription can't be null.");
     }
 
-    subscription = s;
-    s.request(1);
+    if (this.subscription != null) {
+      s.cancel();
+    } else {
+      if (subscribe != null) {
+        tryToDoRethrow(() -> subscribe.accept(s));
+      }
+
+      subscription = s;
+      s.request(1);
+    }
   }
 }

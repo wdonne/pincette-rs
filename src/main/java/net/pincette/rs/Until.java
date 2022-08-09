@@ -1,5 +1,6 @@
 package net.pincette.rs;
 
+import java.util.concurrent.Flow.Processor;
 import java.util.function.Predicate;
 
 /**
@@ -17,13 +18,19 @@ public class Until<T> extends PassThrough<T> {
     this.predicate = predicate;
   }
 
+  public static <T> Processor<T, T> until(final Predicate<T> predicate) {
+    return new Until<>(predicate);
+  }
+
   @Override
   public void onNext(final T value) {
     if (!done) {
       done = predicate.test(value);
       super.onNext(value);
-    } else {
-      complete();
+
+      if (done) {
+        complete();
+      }
     }
   }
 }

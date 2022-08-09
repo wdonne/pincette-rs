@@ -1,5 +1,7 @@
 package net.pincette.rs;
 
+import java.util.concurrent.Flow.Processor;
+
 /**
  * Emits only the first value it receives.
  *
@@ -10,5 +12,9 @@ package net.pincette.rs;
 public class First<T> extends Until<T> {
   public First() {
     super(v -> true);
+  }
+
+  public static <T> Processor<T, T> first() {
+    return new First<>();
   }
 }

@@ -2,10 +2,11 @@ package net.pincette.rs;
 
 import static java.util.Arrays.asList;
 
+import java.util.ArrayList;
 import java.util.List;
-import org.reactivestreams.Publisher;
-import org.reactivestreams.Subscriber;
-import org.reactivestreams.Subscription;
+import java.util.concurrent.Flow.Publisher;
+import java.util.concurrent.Flow.Subscriber;
+import java.util.concurrent.Flow.Subscription;
 
 /**
  * Emits a list of values.
@@ -33,14 +34,19 @@ public class Source<T> implements Publisher<T> {
    * @since 1.0
    */
   public static <T> Publisher<T> of(final List<T> values) {
-    return new Source<>(values);
+    return new Source<>(new ArrayList<>(values));
   }
 
+  @SafeVarargs
   public static <T> Publisher<T> of(final T... values) {
-    return new Source<>(asList(values.clone()));
+    return new Source<>(asList(values));
   }
 
   public void subscribe(final Subscriber<? super T> subscriber) {
+    if (subscriber == null) {
+      throw new NullPointerException("A subscriber can't be null.");
+    }
+
     this.subscriber = subscriber;
     position = 0;
     subscriber.onSubscribe(new Cursor());

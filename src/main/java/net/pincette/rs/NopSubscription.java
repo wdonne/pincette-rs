@@ -1,6 +1,6 @@
 package net.pincette.rs;
 
-import org.reactivestreams.Subscription;
+import java.util.concurrent.Flow.Subscription;
 
 /**
  * This is for emitters that can't be controlled in any way. They can't be stopped and they don't
@@ -10,6 +10,10 @@ import org.reactivestreams.Subscription;
  * @since 1.0
  */
 public class NopSubscription implements Subscription {
+  public static Subscription nopSubscription() {
+    return new NopSubscription();
+  }
+
   public void cancel() {
     // Do nothing.
   }

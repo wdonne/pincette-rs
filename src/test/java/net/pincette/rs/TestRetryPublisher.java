@@ -38,6 +38,7 @@ class TestRetryPublisher {
                           })
                       .get(),
               ofSeconds(1));
-        });
+        },
+        1);
   }
 }

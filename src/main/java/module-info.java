@@ -1,5 +1,6 @@
 module net.pincette.rs {
   requires net.pincette.common;
-  requires org.reactivestreams;
+  requires java.logging;
   exports net.pincette.rs;
+  opens net.pincette.rs;
 }

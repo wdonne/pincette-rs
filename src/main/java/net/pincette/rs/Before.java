@@ -1,5 +1,6 @@
 package net.pincette.rs;
 
+import java.util.concurrent.Flow.Processor;
 import java.util.function.Supplier;
 
 /**
@@ -21,6 +22,14 @@ public class Before<T> extends Mapper<T, T> {
   public Before(final Supplier<T> value) {
     super(v -> v);
     this.value = value;
+  }
+
+  public static <T> Processor<T, T> before(final T value) {
+    return new Before<>(value);
+  }
+
+  public static <T> Processor<T, T> before(final Supplier<T> value) {
+    return new Before<>(value);
   }
 
   @Override

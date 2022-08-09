@@ -1,9 +1,15 @@
 package net.pincette.rs;
 
+import static java.util.concurrent.CompletableFuture.completedFuture;
+import static net.pincette.rs.Box.box;
+import static net.pincette.rs.Mapper.map;
+import static net.pincette.util.Collections.list;
+
+import java.util.Deque;
 import java.util.concurrent.CompletionStage;
-import java.util.function.Supplier;
-import org.reactivestreams.Subscriber;
-import org.reactivestreams.Subscription;
+import java.util.concurrent.ConcurrentLinkedDeque;
+import java.util.concurrent.Flow.Processor;
+import java.util.function.Function;
 
 /**
  * Emits the values produced by the stages in the order the stages arrive. The stream completes only
@@ -13,48 +19,63 @@ import org.reactivestreams.Subscription;
  * @author Werner Donn\u00e9
  * @since 1.5
  */
-public class Async<T> implements AsyncProcessor<T> {
-  private CompletionStage<Void> last;
-  private Subscriber<? super T> subscriber;
-  private Subscription subscription;
+public class Async<T> extends ProcessorBase<CompletionStage<T>, T> {
+  private final Deque<CompletionStage<Void>> stages =
+      new ConcurrentLinkedDeque<>(list(completedFuture(null)));
 
-  public void onComplete() {
-    if (subscriber != null) {
-      if (last != null) {
-        last.thenRun(subscriber::onComplete);
-      } else {
-        subscriber.onComplete();
-      }
-    }
+  public static <T> Processor<CompletionStage<T>, T> async() {
+    return new Async<>();
   }
 
-  public void onError(final Throwable t) {
-    if (subscriber != null) {
-      subscriber.onError(t);
+  /**
+   * Returns a processor with the mapping function, which transforms the objects. The completion
+   * stages are processed in the order of the stream, which completes only after the last stage is
+   * completed. This means the functions may start in parallel, but the completions are emitted in
+   * the proper order.
+   *
+   * @param function the mapping function.
+   * @param <T> the incoming value type.
+   * @param <R> the outgoing value type.
+   * @return The processor.
+   * @since 3.0
+   */
+  public static <T, R> Processor<T, R> mapAsync(final Function<T, CompletionStage<R>> function) {
+    return box(map(function), async());
+  }
+
+  @Override
+  protected void emit(final long number) {
+    subscription.request(number);
+  }
+
+  @Override
+  public void onComplete() {
+    if (!getError()) {
+      stages.getFirst().thenRunAsync(() -> subscriber.onComplete());
     }
   }
 
   public void onNext(final CompletionStage<T> stage) {
-    if (subscriber != null) {
-      final Supplier<CompletionStage<Void>> next = () -> stage.thenAccept(subscriber::onNext);
-
-      last = last == null ? next.get() : last.thenComposeAsync(value -> next.get());
+    if (stage == null) {
+      throw new NullPointerException("Can't emit null.");
     }
-  }
 
-  public void onSubscribe(final Subscription subscription) {
-    this.subscription = subscription;
+    if (!getError()) {
+      stages.addFirst(
+          stages
+              .getFirst()
+              .thenComposeAsync(v -> stage.thenAccept(value -> subscriber.onNext(value)))
+              .exceptionally(
+                  t -> {
+                    subscriber.onError(t);
+                    subscription.cancel();
 
-    if (subscriber != null) {
-      subscriber.onSubscribe(subscription);
-    }
-  }
+                    return null;
+                  }));
 
-  public void subscribe(final Subscriber<? super T> subscriber) {
-    this.subscriber = subscriber;
-
-    if (subscription != null) {
-      subscriber.onSubscribe(subscription);
+      while (stages.size() > 10) {
+        stages.removeLast();
+      }
     }
   }
 }

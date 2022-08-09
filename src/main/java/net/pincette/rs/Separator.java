@@ -1,5 +1,6 @@
 package net.pincette.rs;
 
+import java.util.concurrent.Flow.Processor;
 import java.util.function.Supplier;
 
 /**
@@ -21,6 +22,14 @@ public class Separator<T> extends Mapper<T, T> {
   public Separator(final Supplier<T> value) {
     super(v -> v);
     this.value = value;
+  }
+
+  public static <T> Processor<T, T> separator(final T value) {
+    return new Separator<>(value);
+  }
+
+  public static <T> Processor<T, T> separator(final Supplier<T> value) {
+    return new Separator<>(value);
   }
 
   @Override

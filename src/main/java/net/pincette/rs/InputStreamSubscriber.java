@@ -11,9 +11,9 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.nio.ByteBuffer;
 import java.util.Optional;
+import java.util.concurrent.Flow.Subscriber;
+import java.util.concurrent.Flow.Subscription;
 import net.pincette.util.Util.GeneralException;
-import org.reactivestreams.Subscriber;
-import org.reactivestreams.Subscription;
 
 /**
  * This is an input stream that can be used as a reactive streams subscriber. It complies with the
@@ -62,6 +62,10 @@ public class InputStreamSubscriber extends InputStream implements Subscriber<Byt
   }
 
   public void onError(final Throwable t) {
+    if (t == null) {
+      throw new NullPointerException("Can't throw null.");
+    }
+
     ended = true;
     exception = t;
     unpark(thread);
@@ -69,14 +73,23 @@ public class InputStreamSubscriber extends InputStream implements Subscriber<Byt
   }
 
   public void onNext(final ByteBuffer buffer) {
+    if (buffer == null) {
+      throw new NullPointerException("Can't emit null.");
+    }
+
     this.buffer = buffer;
     unpark(thread);
   }
 
   public void onSubscribe(final Subscription subscription) {
-    this.subscription = subscription;
+    if (subscription == null) {
+      throw new NullPointerException("A subscription can't be null.");
+    }
 
-    if (subscription != null) {
+    if (this.subscription != null) {
+      subscription.cancel();
+    } else {
+      this.subscription = subscription;
       subscription.request(1);
     }
   }

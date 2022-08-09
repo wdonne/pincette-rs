@@ -7,9 +7,9 @@ import static net.pincette.rs.Util.parking;
 
 import java.io.OutputStream;
 import java.nio.ByteBuffer;
-import org.reactivestreams.Publisher;
-import org.reactivestreams.Subscriber;
-import org.reactivestreams.Subscription;
+import java.util.concurrent.Flow.Publisher;
+import java.util.concurrent.Flow.Subscriber;
+import java.util.concurrent.Flow.Subscription;
 
 /**
  * This is an output stream that can be used as a reactive streams publisher. It complies with the
@@ -56,11 +56,12 @@ public class OutputStreamPublisher extends OutputStream implements Publisher<Byt
   }
 
   public void subscribe(final Subscriber<? super ByteBuffer> subscriber) {
-    this.subscriber = subscriber;
-
-    if (subscriber != null) {
-      subscriber.onSubscribe(new StreamSubscription());
+    if (subscriber == null) {
+      throw new NullPointerException("A subscriber can't be null.");
     }
+
+    this.subscriber = subscriber;
+    subscriber.onSubscribe(new StreamSubscription());
   }
 
   @Override
@@ -89,6 +90,10 @@ public class OutputStreamPublisher extends OutputStream implements Publisher<Byt
     }
 
     public void request(long n) {
+      if (n <= 0) {
+        throw new IllegalArgumentException("A request must be strictly positive.");
+      }
+
       requested += n;
       unpark(thread);
     }

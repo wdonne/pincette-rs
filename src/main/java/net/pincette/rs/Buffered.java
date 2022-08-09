@@ -1,105 +1,260 @@
 package net.pincette.rs;
 
+import static net.pincette.rs.Util.LOGGER;
+
 import java.util.Deque;
+import java.util.List;
 import java.util.concurrent.ConcurrentLinkedDeque;
-import java.util.function.Function;
-import org.reactivestreams.Processor;
-import org.reactivestreams.Subscriber;
-import org.reactivestreams.Subscription;
+import java.util.function.Supplier;
+import net.pincette.util.Util.GeneralException;
 
-class Buffered<T, R> implements Processor<T, R> {
-  private final Deque<T> buf = new ConcurrentLinkedDeque<>();
-  private final Function<Deque<T>, R> consumerBuffer;
-  private final int size;
-  private boolean available = true;
-  private boolean error;
-  private int requested;
-  private Subscriber<? super R> subscriber;
-  private Subscription subscription;
+/**
+ * Base class for buffered processors. It uses a shared thread.
+ *
+ * @param <T> the incoming value type.
+ * @param <R> the outgoing value type.
+ * @since 3.0
+ * @author Werner Donn\u00e8
+ */
+public abstract class Buffered<T, R> extends ProcessorBase<T, R> {
+  private final Deque<R> buf = new ConcurrentLinkedDeque<>();
+  private final long requestSize;
+  private boolean completed;
+  private boolean completedSent;
+  private boolean lastRequested;
+  private long received;
+  private long requested;
+  private long requestedUpstream;
 
-  Buffered(final int size, final Function<Deque<T>, R> consumerBuffer) {
-    if (size < 1) {
-      throw new IllegalArgumentException("Buffer size should be at least 1.");
+  /**
+   * Create a buffered processor.
+   *
+   * @param requestSize the number of elements that will be requested from the upstream.
+   */
+  protected Buffered(final int requestSize) {
+    if (requestSize < 1) {
+      throw new IllegalArgumentException("Request size should be at least 1.");
     }
 
-    this.size = size;
-    this.consumerBuffer = consumerBuffer;
+    this.requestSize = requestSize;
   }
 
-  private void emit() {
-    if (subscriber != null && subscription != null && !error) {
-      flush();
+  protected void addValues(final List<R> values) {
+    trace(() -> "addValues values: " + values);
+    values.forEach(buf::addFirst);
+  }
 
-      if (available && buf.isEmpty()) {
-        available = false;
-        subscription.request(size);
-      }
+  protected void dispatch(final Runnable action) {
+    Serializer.dispatch(action);
+  }
+
+  private boolean done() {
+    return completed && (received == 0 || buf.isEmpty());
+  }
+
+  private void doLast() {
+    if (!lastRequested) {
+      lastRequested = true;
+      last();
     }
   }
 
-  private void flush() {
-    while (requested > 0 && !buf.isEmpty()) {
-      --requested;
-      subscriber.onNext(consumerBuffer.apply(buf));
-    }
+  @Override
+  protected void emit(final long number) {
+    trace(() -> "dispatch emit number: " + number);
+
+    dispatch(
+        () -> {
+          trace(() -> "emit number: " + number);
+          requested += number;
+          more();
+          emit();
+        });
   }
 
-  private void notifySubscriber() {
-    subscriber.onSubscribe(new Backpressure());
+  /** Triggers the downstream emission flow. The <code>onNextAction</code> method could use this. */
+  protected void emit() {
+    trace(() -> "dispatch emit");
+
+    dispatch(
+        () -> {
+          trace(() -> "emit");
+
+          if (getRequested() > 0) {
+            trace(() -> "emit buf: " + buf);
+            trace(() -> "emit requested: " + getRequested());
+
+            Util.nextValues(buf, getRequested())
+                .ifPresent(
+                    values -> {
+                      requested -= values.size();
+                      sendValues(values);
+                    });
+
+            more();
+          }
+        });
   }
 
+  /**
+   * Returns the number of requested elements by the downstream.
+   *
+   * @return The requested elements number.
+   */
+  protected long getRequested() {
+    return requested;
+  }
+
+  /**
+   * Indicates whether the stream is completed.
+   *
+   * @return The completes status.
+   */
+  protected boolean isCompleted() {
+    return completed;
+  }
+
+  /**
+   * This is called when the stream has completed. It provides subclasses with the opportunity to
+   * flush any remaining data to the buffer.
+   */
+  protected void last() {
+    // Optional for subclasses.
+  }
+
+  private void more() {
+    trace(() -> "dispatch more");
+
+    dispatch(
+        () -> {
+          trace(() -> "more");
+
+          if (needMore()) {
+            requestedUpstream += requestSize;
+            trace(() -> "more requestedUpstream: " + requestedUpstream);
+            trace(() -> "more subscription request: " + requestSize);
+            subscription.request(requestSize);
+          }
+        });
+  }
+
+  private boolean needMore() {
+    return !isCompleted() && received == requestedUpstream && getRequested() > buf.size();
+  }
+
+  @Override
   public void onComplete() {
-    if (subscriber != null && !error) {
-      flush();
-      subscriber.onComplete();
-    }
+    trace(() -> "dispatch onComplete");
+
+    dispatch(
+        () -> {
+          trace(() -> "onComplete buf: " + buf);
+          completed = true;
+          doLast();
+
+          if (done()) {
+            trace(() -> "sendComplete from onComplete");
+            sendComplete();
+          } else {
+            emit();
+          }
+        });
   }
 
+  @Override
   public void onError(final Throwable t) {
-    error = true;
-
-    if (subscriber != null) {
-      subscriber.onError(t);
+    if (t == null) {
+      throw new NullPointerException("Can't throw null.");
     }
+
+    setError(true);
+    subscriber.onError(t);
   }
 
-  public void onNext(T t) {
-    buf.addFirst(t);
-
-    if (buf.size() == size) {
-      available = true;
-      emit();
+  @Override
+  public void onNext(final T value) {
+    if (value == null) {
+      throw new NullPointerException("Can't emit null.");
     }
-  }
 
-  public void onSubscribe(final Subscription subscription) {
-    this.subscription = subscription;
-
-    if (subscriber != null) {
-      notifySubscriber();
-    }
-  }
-
-  public void subscribe(final Subscriber<? super R> subscriber) {
-    this.subscriber = subscriber;
-
-    if (subscriber != null && subscription != null) {
-      notifySubscriber();
-    }
-  }
-
-  private class Backpressure implements Subscription {
-    public void cancel() {
-      if (subscription != null) {
-        subscription.cancel();
+    if (!getError()) {
+      if (received == requestedUpstream) {
+        throw new GeneralException(
+            "Backpressure violation in "
+                + subscription.getClass().getName()
+                + ". Requested "
+                + requestedUpstream
+                + " elements in "
+                + getClass().getName()
+                + ", which have already been received.");
       }
-    }
 
-    public void request(final long number) {
-      if (number > 0) {
-        requested += number;
-        emit();
-      }
+      trace(() -> "dispatch onNext value: " + value);
+
+      dispatch(
+          () -> {
+            ++received;
+            trace(() -> "onNext received: " + received);
+
+            if (!onNextAction(value)) {
+              trace(() -> "onNext onNextAction false");
+              more();
+            }
+          });
     }
+  }
+
+  /**
+   * The <code>onNext</code> method uses this method.
+   *
+   * @param value the received value.
+   */
+  protected abstract boolean onNextAction(final T value);
+
+  private void sendComplete() {
+    trace(() -> "dispatch sendComplete");
+
+    dispatch(
+        () -> {
+          if (!completedSent) {
+            completedSent = true;
+            trace(() -> "send onComplete");
+            subscriber.onComplete();
+          }
+        });
+  }
+
+  /**
+   * Sends the values to the downstream one by one.
+   *
+   * @param values the values to be sent.
+   */
+  private void sendValues(final List<R> values) {
+    if (!getError()) {
+      trace(() -> "dispatch values: " + values);
+      values.forEach(
+          v ->
+              dispatch(
+                  () -> {
+                    trace(() -> "sendValue: " + v);
+                    subscriber.onNext(v);
+                  }));
+
+      dispatch(
+          () -> {
+            if (completed) {
+              doLast();
+
+              if (buf.isEmpty()) {
+                trace(() -> "sendComplete from sendValues");
+                sendComplete();
+              }
+            }
+          });
+    }
+  }
+
+  private void trace(final Supplier<String> message) {
+    LOGGER.finest(() -> getClass().getName() + ": " + message.get());
   }
 }

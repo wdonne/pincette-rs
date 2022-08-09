@@ -6,10 +6,10 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionStage;
+import java.util.concurrent.Flow.Subscriber;
+import java.util.concurrent.Flow.Subscription;
 import java.util.function.Function;
 import java.util.stream.Stream;
-import org.reactivestreams.Subscriber;
-import org.reactivestreams.Subscription;
 
 /**
  * Accumulates a publisher and when that's done it calls the provided function. With the <code>get
@@ -34,6 +34,11 @@ public class Accumulator<T, U> implements Subscriber<T> {
     this.reducer = reducer;
   }
 
+  public static <T, U> Subscriber<T> accumulator(
+      final Function<Stream<T>, CompletionStage<U>> reducer) {
+    return new Accumulator<>(reducer);
+  }
+
   /**
    * Returns the reduced value when the stage is complete.
    *
@@ -44,21 +49,41 @@ public class Accumulator<T, U> implements Subscriber<T> {
     return future;
   }
 
+  private void more() {
+    subscription.request(1);
+  }
+
   public void onComplete() {
     reducer.apply(list.stream()).thenAccept(future::complete);
   }
 
   public void onError(final Throwable t) {
+    if (t == null) {
+      throw new NullPointerException("Can't throw null.");
+    }
+
     rethrow(t);
   }
 
   public void onNext(final T value) {
+    if (value == null) {
+      throw new NullPointerException("Can't emit null.");
+    }
+
     list.add(value);
-    subscription.request(1);
+    more();
   }
 
   public void onSubscribe(final Subscription subscription) {
-    this.subscription = subscription;
-    subscription.request(1);
+    if (subscription == null) {
+      throw new NullPointerException("A subscription can't be null.");
+    }
+
+    if (this.subscription != null) {
+      subscription.cancel();
+    } else {
+      this.subscription = subscription;
+      more();
+    }
   }
 }

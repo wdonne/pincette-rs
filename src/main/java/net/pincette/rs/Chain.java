@@ -1,19 +1,21 @@
 package net.pincette.rs;
 
+import java.time.Duration;
 import java.util.List;
 import java.util.concurrent.CompletionStage;
+import java.util.concurrent.Flow.Processor;
+import java.util.concurrent.Flow.Publisher;
+import java.util.function.BiFunction;
+import java.util.function.Consumer;
 import java.util.function.Function;
 import java.util.function.Predicate;
 import java.util.function.Supplier;
-import org.reactivestreams.Processor;
-import org.reactivestreams.Publisher;
-import org.reactivestreams.Subscriber;
 
 /**
  * Chains processors after the initial publisher.
  *
  * @param <T> the object type of the initial publisher.
- * @author Werner DOnn\u00e9
+ * @author Werner Donn\u00e9
  * @since 1.0
  */
 public class Chain<T> {
@@ -44,6 +46,16 @@ public class Chain<T> {
    */
   public Chain<T> after(final T value) {
     return map(new After<>(value));
+  }
+
+  /**
+   * Asks the upstream for more elements if it hasn't received any before the timeout, until the
+   * stream completes.
+   *
+   * @since 3.0
+   */
+  public Chain<T> askForever(final Duration timeout) {
+    return map(new AskForever<>(timeout));
   }
 
   /**
@@ -88,7 +100,21 @@ public class Chain<T> {
    * @since 1.7
    */
   public Chain<T> buffer(final int size) {
-    return map(new Buffer<>(size));
+    return map(Buffer.buffer(size));
+  }
+
+  /**
+   * When the down stream requests more messages this indicates all messages it has received were
+   * processed correctly. This is a moment to perform a commit with a function that receives the
+   * list of uncommitted messages.
+   *
+   * @param commit the commit function. New messages are only requested when the completion stage
+   *     returns <code>true</code>.
+   * @return A new chain with the same object type.
+   * @since 3.0
+   */
+  public Chain<T> commit(final Function<List<T>, CompletionStage<Boolean>> commit) {
+    return map(new Commit<>(commit));
   }
 
   /**
@@ -113,6 +139,28 @@ public class Chain<T> {
   }
 
   /**
+   * Appends a processor that emits the elements from the generated publisher individually.
+   *
+   * @param function the function that generates the publisher.
+   * @return A new chain with the same object type.
+   * @since 3.0
+   */
+  public <R> Chain<R> flatMap(final Function<T, Publisher<R>> function) {
+    return map(Flatten.flatMap(function));
+  }
+
+  /**
+   * Appends a processor that emits the elements from the generated list individually.
+   *
+   * @param function the function that generates the list.
+   * @return A new chain with the same object type.
+   * @since 3.0
+   */
+  public <R> Chain<R> flatMapList(final Function<T, List<R>> function) {
+    return map(FlattenList.flatMapList(function));
+  }
+
+  /**
    * Returns the publisher of the chain.
    *
    * @return The publisher.
@@ -120,6 +168,19 @@ public class Chain<T> {
    */
   public Publisher<T> get() {
     return publisher;
+  }
+
+  /**
+   * Appends a processor that doesn't emit the head of a stream, but instead gives it to a function.
+   *
+   * @param head the function that receives the first value.
+   * @param tail the function that receives all other values.
+   * @param <R> the object type for the new chain.
+   * @return The new chain.
+   * @since 3.0
+   */
+  public <R> Chain<R> headTail(final Consumer<T> head, final Function<T, R> tail) {
+    return map(new HeadTail<>(head, tail));
   }
 
   /**
@@ -147,19 +208,6 @@ public class Chain<T> {
   }
 
   /**
-   * Appends <code>processor</code> to the chain.
-   *
-   * @param processor the given processor.
-   * @return The new chain.
-   * @since 1.5
-   */
-  public Chain<T> map(final AsyncProcessor<T> processor) {
-    publisher.subscribe((Subscriber<? super T>) processor);
-
-    return new Chain<>(processor);
-  }
-
-  /**
    * Appends a processor with the mapping <code>function</code>, which transforms the objects.
    *
    * @param function the mapping function.
@@ -173,8 +221,9 @@ public class Chain<T> {
 
   /**
    * Appends a processor with the mapping function, which transforms the objects. The completion
-   * stages are executed in the order of the stream, which completes only after the last stage is
-   * completed.
+   * stages are processed in the order of the stream, which completes only after the last stage is
+   * completed. This means the functions may start in parallel, but the completions are emitted in
+   * the proper order.
    *
    * @param function the mapping function.
    * @param <R> the object type for the new chain.
@@ -182,13 +231,22 @@ public class Chain<T> {
    * @since 1.5.1
    */
   public <R> Chain<R> mapAsync(final Function<T, CompletionStage<R>> function) {
-    final Processor<T, CompletionStage<R>> processor = new Mapper<>(function);
-    final AsyncProcessor<R> asyncProcessor = new Async<>();
+    return map(Async.mapAsync(function));
+  }
 
-    publisher.subscribe(processor);
-    processor.subscribe(asyncProcessor);
-
-    return new Chain<>(asyncProcessor);
+  /**
+   * Appends a processor with the mapping function, which transforms the objects. The functions
+   * stages are executed in the order of the stream, which completes only after the last stage is
+   * completed. A function call will also receive the result of the previous call, which is <code>
+   * null</code> for the first call.
+   *
+   * @param function the mapping function.
+   * @param <R> the object type for the new chain.
+   * @return The new chain.
+   * @since 3.0
+   */
+  public <R> Chain<R> mapAsync(final BiFunction<T, R, CompletionStage<R>> function) {
+    return map(AsyncDepend.mapAsync(function));
   }
 
   /**
@@ -235,6 +293,16 @@ public class Chain<T> {
    */
   public Chain<T> separate(final Supplier<T> value) {
     return map(new Separator<>(value));
+  }
+
+  /**
+   * When the upstream or downstream could cause races, this processor serializes everything with a
+   * thread and a blocking queue.
+   *
+   * @since 3.0
+   */
+  public Chain<T> split() {
+    return map(new Split<>());
   }
 
   /**

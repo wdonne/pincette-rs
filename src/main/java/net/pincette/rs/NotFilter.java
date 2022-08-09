@@ -1,5 +1,6 @@
 package net.pincette.rs;
 
+import java.util.concurrent.Flow.Processor;
 import java.util.function.Predicate;
 
 /**
@@ -17,5 +18,9 @@ public class NotFilter<T> extends Mapper<T, T> {
    */
   public NotFilter(final Predicate<T> predicate) {
     super(v -> !predicate.test(v) ? v : null);
+  }
+
+  public static <T> Processor<T, T> notFilter(final Predicate<T> predicate) {
+    return new NotFilter<>(predicate);
   }
 }
