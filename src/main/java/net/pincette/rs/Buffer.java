@@ -2,13 +2,12 @@ package net.pincette.rs;
 
 import static net.pincette.util.Collections.list;
 
+import java.time.Duration;
 import java.util.concurrent.Flow.Processor;
 
 /**
  * Buffers a number of values. It always requests the number of values from the publisher that
- * equals the buffer size. This processor uses a shared thread. Internally the buffer is not
- * bounded, so a publisher that doesn't respect backpressure may grow it infinitely. This processor
- * itself will always respect backpressure for its subscribers.
+ * equals the buffer size. This processor uses a shared thread.
  *
  * @param <T> the value type.
  * @since 1.7
@@ -19,8 +18,16 @@ public class Buffer<T> extends Buffered<T, T> {
     super(size);
   }
 
+  public Buffer(final int size, final Duration timeout) {
+    super(size, timeout);
+  }
+
   public static <T> Processor<T, T> buffer(final int size) {
     return new Buffer<>(size);
+  }
+
+  public static <T> Processor<T, T> buffer(final int size, final Duration timeout) {
+    return new Buffer<>(size, timeout);
   }
 
   protected boolean onNextAction(final T value) {

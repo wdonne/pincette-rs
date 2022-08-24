@@ -9,6 +9,7 @@ import java.util.concurrent.CompletionStage;
 import java.util.concurrent.Flow.Subscriber;
 import java.util.concurrent.Flow.Subscription;
 import java.util.function.Function;
+import java.util.function.UnaryOperator;
 import java.util.stream.Stream;
 
 /**
@@ -19,8 +20,9 @@ import java.util.stream.Stream;
  * @since 1.3
  */
 public class Accumulator<T, U> implements Subscriber<T> {
-  private final List<T> list = new ArrayList<>();
+  private final UnaryOperator<T> copy;
   private final CompletableFuture<U> future = new CompletableFuture<>();
+  private final List<T> list = new ArrayList<>();
   private final Function<Stream<T>, CompletionStage<U>> reducer;
   private Subscription subscription;
 
@@ -31,12 +33,31 @@ public class Accumulator<T, U> implements Subscriber<T> {
    * @since 1.3
    */
   public Accumulator(final Function<Stream<T>, CompletionStage<U>> reducer) {
+    this(reducer, null);
+  }
+
+  /**
+   * Constructs the accumulator with a reducer.
+   *
+   * @param reducer the reducer function.
+   * @param copy the function that copies the values before they are accumulated. It may be <code>
+   *     null</code>.
+   * @since 3.0.1
+   */
+  public Accumulator(
+      final Function<Stream<T>, CompletionStage<U>> reducer, final UnaryOperator<T> copy) {
     this.reducer = reducer;
+    this.copy = copy;
   }
 
   public static <T, U> Subscriber<T> accumulator(
       final Function<Stream<T>, CompletionStage<U>> reducer) {
     return new Accumulator<>(reducer);
+  }
+
+  public static <T, U> Subscriber<T> accumulator(
+      final Function<Stream<T>, CompletionStage<U>> reducer, final UnaryOperator<T> copy) {
+    return new Accumulator<>(reducer, copy);
   }
 
   /**
@@ -70,7 +91,7 @@ public class Accumulator<T, U> implements Subscriber<T> {
       throw new NullPointerException("Can't emit null.");
     }
 
-    list.add(value);
+    list.add(copy != null ? copy.apply(value) : value);
     more();
   }
 

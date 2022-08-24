@@ -1,6 +1,6 @@
 package net.pincette.rs;
 
-import static java.lang.Math.max;
+import static java.time.Duration.ofMillis;
 import static java.util.Arrays.asList;
 import static java.util.Arrays.fill;
 import static java.util.stream.Collectors.toList;
@@ -33,7 +33,7 @@ public class Merge<T> implements Publisher<T> {
    * @param publishers the publishers of which all events are forwarded.
    */
   public Merge(final List<Publisher<T>> publishers) {
-    buffer = buffer(max(1000, publishers.size()));
+    buffer = buffer(publishers.size() * 1000, ofMillis(500));
     branchSubscribers = publishers.stream().map(this::branchSubscriber).collect(toList());
   }
 
@@ -93,8 +93,10 @@ public class Merge<T> implements Publisher<T> {
       branchSubscribers.forEach(b -> b.subscription.cancel());
     }
 
-    private List<BranchSubscriber> incomplete() {
-      return branchSubscribers.stream().filter(s -> !s.complete).collect(toList());
+    private List<BranchSubscriber> eligible() {
+      return branchSubscribers.stream()
+          .filter(s -> !s.complete && s.received == s.requested)
+          .collect(toList());
     }
 
     public void request(final long n) {
@@ -103,22 +105,26 @@ public class Merge<T> implements Publisher<T> {
       }
 
       trace(() -> "request: " + n);
+
       if (!completed) {
         requestBranches(n);
       }
     }
 
     private void requestBranches(final long n) {
-      final List<BranchSubscriber> incomplete = incomplete();
+      final List<BranchSubscriber> eligible = eligible();
 
-      if (!incomplete.isEmpty()) {
-        final long[] requests = spreadRequests(n, incomplete.size());
+      if (!eligible.isEmpty()) {
+        final long[] requests = spreadRequests(n, eligible.size());
 
         for (int i = 0; i < requests.length; ++i) {
           final long num = requests[i];
+          final BranchSubscriber s = eligible.get(i);
 
           trace(() -> "branch request: " + num);
-          incomplete.get(i).subscription.request(num);
+          s.received = 0;
+          s.requested = num;
+          s.subscription.request(num);
         }
       }
     }
@@ -142,6 +148,8 @@ public class Merge<T> implements Publisher<T> {
 
   private class BranchSubscriber implements Subscriber<T> {
     private boolean complete;
+    private long received;
+    private long requested;
     private Subscription subscription;
 
     private boolean allCompleted() {
@@ -177,6 +185,7 @@ public class Merge<T> implements Publisher<T> {
 
     public void onNext(final T item) {
       trace(() -> "Send onNext to buffer: " + item);
+      ++received;
       buffer.onNext(item);
     }
 

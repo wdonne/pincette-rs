@@ -1,5 +1,6 @@
 package net.pincette.rs;
 
+import static java.util.Optional.ofNullable;
 import static net.pincette.util.Util.rethrow;
 import static net.pincette.util.Util.tryToDo;
 
@@ -104,7 +105,7 @@ public class Reducer {
             () -> new State<T>(null),
             (state, value) ->
                 state.set(state.value != null ? accumulator.apply(state.value, value) : value))
-        .thenApply(result -> Optional.ofNullable(result.value));
+        .thenApply(result -> ofNullable(result.value));
   }
 
   /**

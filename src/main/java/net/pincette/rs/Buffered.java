@@ -1,10 +1,13 @@
 package net.pincette.rs;
 
 import static net.pincette.rs.Util.LOGGER;
+import static net.pincette.util.ScheduledCompletionStage.runAsyncAfter;
 
+import java.time.Duration;
 import java.util.Deque;
 import java.util.List;
 import java.util.concurrent.ConcurrentLinkedDeque;
+import java.util.concurrent.Flow.Subscription;
 import java.util.function.Supplier;
 import net.pincette.util.Util.GeneralException;
 
@@ -19,6 +22,7 @@ import net.pincette.util.Util.GeneralException;
 public abstract class Buffered<T, R> extends ProcessorBase<T, R> {
   private final Deque<R> buf = new ConcurrentLinkedDeque<>();
   private final long requestSize;
+  private final Duration timeout;
   private boolean completed;
   private boolean completedSent;
   private boolean lastRequested;
@@ -32,11 +36,25 @@ public abstract class Buffered<T, R> extends ProcessorBase<T, R> {
    * @param requestSize the number of elements that will be requested from the upstream.
    */
   protected Buffered(final int requestSize) {
+    this(requestSize, null);
+  }
+
+  /**
+   * Create a buffered processor.
+   *
+   * @param requestSize the number of elements that will be requested from the upstream.
+   */
+  protected Buffered(final int requestSize, final Duration timeout) {
     if (requestSize < 1) {
       throw new IllegalArgumentException("Request size should be at least 1.");
     }
 
+    if (timeout != null && (timeout.isZero() || timeout.isNegative())) {
+      throw new IllegalArgumentException("The timeout should be positive.");
+    }
+
     this.requestSize = requestSize;
+    this.timeout = timeout;
   }
 
   protected void addValues(final List<R> values) {
@@ -130,12 +148,16 @@ public abstract class Buffered<T, R> extends ProcessorBase<T, R> {
           trace(() -> "more");
 
           if (needMore()) {
-            requestedUpstream += requestSize;
-            trace(() -> "more requestedUpstream: " + requestedUpstream);
-            trace(() -> "more subscription request: " + requestSize);
-            subscription.request(requestSize);
+            more(requestSize);
           }
         });
+  }
+
+  private void more(final long size) {
+    requestedUpstream += size;
+    trace(() -> "more requestedUpstream: " + requestedUpstream);
+    trace(() -> "more subscription request: " + size);
+    subscription.request(size);
   }
 
   private boolean needMore() {
@@ -210,6 +232,35 @@ public abstract class Buffered<T, R> extends ProcessorBase<T, R> {
    * @param value the received value.
    */
   protected abstract boolean onNextAction(final T value);
+
+  @Override
+  public void onSubscribe(final Subscription subscription) {
+    super.onSubscribe(subscription);
+
+    if (timeout != null) {
+      runRequestTimeout();
+    }
+  }
+
+  private void requestTimeout() {
+    dispatch(
+        () -> {
+          if (!isCompleted() && received < requestedUpstream && buf.size() < requestSize) {
+            more(requestSize - buf.size());
+          }
+        });
+  }
+
+  private void runRequestTimeout() {
+    runAsyncAfter(
+        () -> {
+          if (!isCompleted()) {
+            runRequestTimeout();
+            requestTimeout();
+          }
+        },
+        timeout);
+  }
 
   private void sendComplete() {
     trace(() -> "dispatch sendComplete");
