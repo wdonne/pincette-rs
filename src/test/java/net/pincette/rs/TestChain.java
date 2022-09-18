@@ -8,6 +8,7 @@ import static net.pincette.rs.Mapper.map;
 import static net.pincette.rs.Source.of;
 import static net.pincette.rs.TestUtil.runTest;
 import static net.pincette.rs.TestUtil.values;
+import static net.pincette.rs.Util.join;
 import static net.pincette.util.Collections.list;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 
@@ -17,7 +18,6 @@ import java.util.concurrent.Flow.Processor;
 import java.util.function.Supplier;
 import net.pincette.util.State;
 import org.junit.jupiter.api.DisplayName;
-import org.junit.jupiter.api.Tag;
 import org.junit.jupiter.api.Test;
 
 class TestChain {
@@ -30,6 +30,7 @@ class TestChain {
   private static void flattenTest1(final Supplier<Processor<List<Integer>, Integer>> processor) {
     final List<Integer> values = values(0, 10);
 
+    /*
     runTest(
         values,
         () -> with(of(values)).per(3).map(processor.get()).map(v -> v + 1).map(v -> v - 1).get());
@@ -44,6 +45,8 @@ class TestChain {
                 .map(v -> v + 1)
                 .map(v -> v - 1)
                 .get());
+
+     */
 
     runTest(
         values,
@@ -191,32 +194,41 @@ class TestChain {
   }
 
   @Test
-  @DisplayName("chain commit")
-  void commit() {
+  @DisplayName("chain commit1")
+  void commit1() {
     final List<Integer> data = list(1, 2, 3, 4);
+    final List<Integer> committed = new ArrayList<>();
 
-    runTest(
-        data,
-        () -> {
-          final List<Integer> committed = new ArrayList<>();
+    join(
+        with(of(data))
+            .commit(
+                l -> {
+                  committed.addAll(l);
+                  return completedFuture(true);
+                })
+            .buffer(2)
+            .get());
 
-          return with(of(data))
-              .commit(
-                  l -> {
-                    committed.addAll(l);
-                    return completedFuture(true);
-                  })
-              .buffer(2)
-              .map(
-                  new PassThrough<>() {
-                    @Override
-                    public void onComplete() {
-                      super.onComplete();
-                      assertEquals(data, committed);
-                    }
-                  })
-              .get();
-        });
+    assertEquals(data, committed);
+  }
+
+  @Test
+  @DisplayName("chain commit2")
+  void commit2() {
+    final List<Integer> data = list(1, 2, 3, 4);
+    final List<Integer> committed = new ArrayList<>();
+
+    join(
+        with(of(data))
+            .commit(
+                l -> {
+                  committed.addAll(l);
+                  return completedFuture(true);
+                })
+            .buffer(8)
+            .get());
+
+    assertEquals(list(), committed);
   }
 
   @Test

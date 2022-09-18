@@ -1,14 +1,18 @@
 package net.pincette.rs;
 
+import static java.util.Optional.ofNullable;
+import static java.util.stream.Collectors.toList;
 import static net.pincette.util.ScheduledCompletionStage.runAsyncAfter;
+import static net.pincette.util.StreamUtil.generate;
 
 import java.time.Duration;
 import java.util.ArrayList;
+import java.util.Deque;
+import java.util.LinkedList;
 import java.util.List;
 import java.util.Optional;
 import java.util.concurrent.Flow.Processor;
 import java.util.concurrent.Flow.Subscription;
-import net.pincette.function.SideEffect;
 
 /**
  * Buffers a number of values. It always requests the number of values from the publisher that
@@ -20,9 +24,9 @@ import net.pincette.function.SideEffect;
  * @author Werner Donn\u00e8
  */
 public class Per<T> extends Buffered<T, List<T>> {
+  private final Deque<T> buf = new LinkedList<>();
   private final int size;
   private final Duration timeout;
-  private List<T> buf = new ArrayList<>();
   private boolean touched = true;
 
   /**
@@ -41,7 +45,22 @@ public class Per<T> extends Buffered<T, List<T>> {
    * @param timeout the timeout after which the buffer is flushed. It should be positive.
    */
   public Per(final int size, final Duration timeout) {
-    super(size);
+    this(size, timeout, null);
+  }
+
+  /**
+   * Create a buffer of <code>size</code> with a timeout.
+   *
+   * @param size the buffer size, which must be larger than zero.
+   * @param timeout the timeout after which the buffer is flushed. It should be positive.
+   * @param requestTimeout the time after which an additional element is requested, even if the
+   *     upstream publisher hasn't sent all requested elements yet. This provides the opportunity to
+   *     the publisher to complete properly when it has fewer elements left than the buffer size. It
+   *     may be <code>null</code>.
+   * @since 3.0.2
+   */
+  public Per(final int size, final Duration timeout, final Duration requestTimeout) {
+    super(size, requestTimeout);
 
     if (timeout != null && (timeout.isZero() || timeout.isNegative())) {
       throw new IllegalArgumentException("The timeout should be positive.");
@@ -49,10 +68,6 @@ public class Per<T> extends Buffered<T, List<T>> {
 
     this.size = size;
     this.timeout = timeout;
-  }
-
-  private static <T> int totalSize(final List<List<T>> slices) {
-    return slices.stream().mapToInt(List::size).sum();
   }
 
   public static <T> Processor<T, List<T>> per(final int size) {
@@ -63,29 +78,31 @@ public class Per<T> extends Buffered<T, List<T>> {
     return new Per<>(size, timeout);
   }
 
-  private Optional<List<List<T>>> consumeBuffer(final boolean flush) {
-    return Optional.of(getSlices(flush))
-        .filter(s -> !s.isEmpty())
-        .map(
-            s ->
-                SideEffect.<List<List<T>>>run(() -> buf = buf.subList(totalSize(s), buf.size()))
-                    .andThenGet(() -> s));
+  public static <T> Processor<T, List<T>> per(
+      final int size, final Duration timeout, final Duration requestTimeout) {
+    return new Per<>(size, timeout, requestTimeout);
   }
 
-  private List<List<T>> getSlices(final boolean flush) {
-    final List<T> copy = new ArrayList<>(buf);
-    final int slices = copy.size() / size;
-    final List<List<T>> result = new ArrayList<>(slices + 1);
+  private Optional<List<List<T>>> consumeBuffer(final boolean flush) {
+    return Optional.of(getSlices(flush)).filter(s -> !s.isEmpty());
+  }
 
-    for (int i = 0; i < slices; ++i) {
-      result.add(copy.subList(i * size, (i + 1) * size));
-    }
+  private List<T> getSlice(final boolean flush) {
+    return buf.size() >= size || (flush && !buf.isEmpty()) ? getSlice() : null;
+  }
 
-    if (flush && copy.size() % size > 0) {
-      result.add(copy.subList(slices * size, copy.size()));
+  private List<T> getSlice() {
+    final List<T> result = new ArrayList<>(size);
+
+    for (int i = 0; i < size && !buf.isEmpty(); ++i) {
+      result.add(buf.removeLast());
     }
 
     return result;
+  }
+
+  private List<List<T>> getSlices(final boolean flush) {
+    return generate(() -> ofNullable(getSlice(flush))).collect(toList());
   }
 
   @Override
@@ -95,14 +112,14 @@ public class Per<T> extends Buffered<T, List<T>> {
 
   public boolean onNextAction(final T value) {
     touched = true;
-    buf.add(value);
+    buf.addFirst(value);
     sendSlices(isCompleted());
 
     return true;
   }
 
   private void onNextTimeout() {
-    if (!getError() && buf != null && !touched) {
+    if (!getError() && !buf.isEmpty() && !touched) {
       dispatch(() -> sendSlices(true));
     }
 

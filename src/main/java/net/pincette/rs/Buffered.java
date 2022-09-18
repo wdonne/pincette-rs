@@ -43,6 +43,10 @@ public abstract class Buffered<T, R> extends ProcessorBase<T, R> {
    * Create a buffered processor.
    *
    * @param requestSize the number of elements that will be requested from the upstream.
+   * @param timeout the time after which an additional element is requested, even if the upstream
+   *     publisher hasn't sent all requested elements yet. This provides the opportunity to the
+   *     publisher to complete properly when it has fewer elements left than the buffer size. It may
+   *     be <code>null</code>.
    */
   protected Buffered(final int requestSize, final Duration timeout) {
     if (requestSize < 1) {
@@ -63,7 +67,7 @@ public abstract class Buffered<T, R> extends ProcessorBase<T, R> {
   }
 
   protected void dispatch(final Runnable action) {
-    Serializer.dispatch(action);
+    Serializer.dispatch(action::run, this::onError);
   }
 
   private boolean done() {
@@ -189,8 +193,11 @@ public abstract class Buffered<T, R> extends ProcessorBase<T, R> {
       throw new NullPointerException("Can't throw null.");
     }
 
-    setError(true);
-    subscriber.onError(t);
+    dispatch(
+        () -> {
+          setError(true);
+          subscriber.onError(t);
+        });
   }
 
   @Override
@@ -200,21 +207,21 @@ public abstract class Buffered<T, R> extends ProcessorBase<T, R> {
     }
 
     if (!getError()) {
-      if (received == requestedUpstream) {
-        throw new GeneralException(
-            "Backpressure violation in "
-                + subscription.getClass().getName()
-                + ". Requested "
-                + requestedUpstream
-                + " elements in "
-                + getClass().getName()
-                + ", which have already been received.");
-      }
-
       trace(() -> "dispatch onNext value: " + value);
 
       dispatch(
           () -> {
+            if (received == requestedUpstream) {
+              throw new GeneralException(
+                  "Backpressure violation in "
+                      + subscription.getClass().getName()
+                      + ". Requested "
+                      + requestedUpstream
+                      + " elements in "
+                      + getClass().getName()
+                      + ", which have already been received.");
+            }
+
             ++received;
             trace(() -> "onNext received: " + received);
 
@@ -242,23 +249,19 @@ public abstract class Buffered<T, R> extends ProcessorBase<T, R> {
     }
   }
 
-  private void requestTimeout() {
-    dispatch(
-        () -> {
-          if (!isCompleted() && received < requestedUpstream && buf.size() < requestSize) {
-            more(requestSize - buf.size());
-          }
-        });
-  }
-
   private void runRequestTimeout() {
     runAsyncAfter(
-        () -> {
-          if (!isCompleted()) {
-            runRequestTimeout();
-            requestTimeout();
-          }
-        },
+        () ->
+            dispatch(
+                () -> {
+                  if (!isCompleted() && !getError()) {
+                    runRequestTimeout();
+
+                    if (shouldWakeUp()) {
+                      more(1);
+                    }
+                  }
+                }),
         timeout);
   }
 
@@ -303,6 +306,14 @@ public abstract class Buffered<T, R> extends ProcessorBase<T, R> {
             }
           });
     }
+  }
+
+  private boolean shouldWakeUp() {
+    return !isCompleted()
+        && !getError()
+        && received < requestedUpstream
+        && buf.size() < requestSize
+        && requested > 0;
   }
 
   private void trace(final Supplier<String> message) {

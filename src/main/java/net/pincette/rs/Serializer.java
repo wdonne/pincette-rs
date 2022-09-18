@@ -1,10 +1,14 @@
 package net.pincette.rs;
 
+import static java.util.logging.Level.SEVERE;
+import static net.pincette.rs.Util.LOGGER;
 import static net.pincette.util.Util.doForever;
-import static net.pincette.util.Util.tryToDoRethrow;
+import static net.pincette.util.Util.tryToDo;
 
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.LinkedBlockingQueue;
+import java.util.function.Consumer;
+import net.pincette.function.RunnableWithException;
 
 /**
  * This can be used to serialize the execution of mutating operations instead of locking the state
@@ -27,8 +31,17 @@ public class Serializer {
     queue.add(runnable);
   }
 
+  public static void dispatch(
+      final RunnableWithException runnable, final Consumer<Exception> onException) {
+    queue.add(() -> tryToDo(runnable, onException));
+  }
+
   private static void run() {
-    doForever(() -> tryToDoRethrow(() -> queue.take().run()));
+    doForever(
+        () ->
+            tryToDo(
+                () -> queue.take().run(),
+                e -> LOGGER.log(SEVERE, e, () -> "Exception in Serializer: " + e.getMessage())));
   }
 
   private static synchronized void start() {

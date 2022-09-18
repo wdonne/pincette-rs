@@ -45,7 +45,7 @@ public class Chain<T> {
    * @since 1.0
    */
   public Chain<T> after(final T value) {
-    return map(new After<>(value));
+    return map(After.after(value));
   }
 
   /**
@@ -55,7 +55,7 @@ public class Chain<T> {
    * @since 3.0
    */
   public Chain<T> askForever(final Duration timeout) {
-    return map(new AskForever<>(timeout));
+    return map(AskForever.askForever(timeout));
   }
 
   /**
@@ -66,7 +66,7 @@ public class Chain<T> {
    * @since 1.2.1
    */
   public Chain<T> after(final Supplier<T> value) {
-    return map(new After<>(value));
+    return map(After.after(value));
   }
 
   /**
@@ -77,7 +77,7 @@ public class Chain<T> {
    * @since 1.0
    */
   public Chain<T> before(final T value) {
-    return map(new Before<>(value));
+    return map(Before.before(value));
   }
 
   /**
@@ -88,7 +88,7 @@ public class Chain<T> {
    * @since 1.2.1
    */
   public Chain<T> before(final Supplier<T> value) {
-    return map(new Before<>(value));
+    return map(Before.before(value));
   }
 
   /**
@@ -104,6 +104,20 @@ public class Chain<T> {
   }
 
   /**
+   * Buffers a number of values. It always requests the number of values from the publisher that
+   * equals the buffer <code>size</code>.
+   *
+   * @param size the buffer size.
+   * @param timeout the time after which the buffer requests a new value, even if it hasn't received
+   *     enough elements yet.
+   * @return the new stream.
+   * @since 3.0.2
+   */
+  public Chain<T> buffer(final int size, final Duration timeout) {
+    return map(Buffer.buffer(size, timeout));
+  }
+
+  /**
    * When the down stream requests more messages this indicates all messages it has received were
    * processed correctly. This is a moment to perform a commit with a function that receives the
    * list of uncommitted messages.
@@ -114,7 +128,7 @@ public class Chain<T> {
    * @since 3.0
    */
   public Chain<T> commit(final Function<List<T>, CompletionStage<Boolean>> commit) {
-    return map(new Commit<>(commit));
+    return map(Commit.commit(commit));
   }
 
   /**
@@ -125,7 +139,7 @@ public class Chain<T> {
    * @since 1.0
    */
   public Chain<T> filter(final Predicate<T> predicate) {
-    return map(new Filter<>(predicate));
+    return map(Filter.filter(predicate));
   }
 
   /**
@@ -135,7 +149,7 @@ public class Chain<T> {
    * @since 1.4
    */
   public Chain<T> first() {
-    return map(new First<>());
+    return map(First.first());
   }
 
   /**
@@ -180,7 +194,7 @@ public class Chain<T> {
    * @since 3.0
    */
   public <R> Chain<R> headTail(final Consumer<T> head, final Function<T, R> tail) {
-    return map(new HeadTail<>(head, tail));
+    return map(HeadTail.headTail(head, tail));
   }
 
   /**
@@ -190,7 +204,7 @@ public class Chain<T> {
    * @since 1.4
    */
   public Chain<T> last() {
-    return map(new Last<>());
+    return map(Last.last());
   }
 
   /**
@@ -216,7 +230,7 @@ public class Chain<T> {
    * @since 1.0
    */
   public <R> Chain<R> map(final Function<T, R> function) {
-    return map(new Mapper<>(function));
+    return map(Mapper.map(function));
   }
 
   /**
@@ -257,7 +271,7 @@ public class Chain<T> {
    * @since 1.0
    */
   public Chain<T> notFilter(final Predicate<T> predicate) {
-    return map(new NotFilter<>(predicate));
+    return map(NotFilter.notFilter(predicate));
   }
 
   /**
@@ -269,7 +283,37 @@ public class Chain<T> {
    * @since 2.0
    */
   public Chain<List<T>> per(final int size) {
-    return map(new Per<>(size));
+    return map(Per.per(size));
+  }
+
+  /**
+   * Buffers a number of values. It always requests the number of values from the publisher that
+   * equals the buffer <code>size</code>. It emits the buffered values as a list.
+   *
+   * @param size the buffer size.
+   * @param timeout the timeout after which the buffer is flushed. It should be positive.
+   * @return the new stream.
+   * @since 3.0.2
+   */
+  public Chain<List<T>> per(final int size, final Duration timeout) {
+    return map(Per.per(size, timeout));
+  }
+
+  /**
+   * Buffers a number of values. It always requests the number of values from the publisher that
+   * equals the buffer <code>size</code>. It emits the buffered values as a list.
+   *
+   * @param size the buffer size.
+   * @param timeout the timeout after which the buffer is flushed. It should be positive.
+   * @param requestTimeout the time after which an additional element is requested, even if the
+   *     upstream publisher hasn't sent all requested elements yet. This provides the opportunity to
+   *     the publisher to complete properly when it has fewer elements left than the buffer size. It
+   *     may be <code>null</code>.
+   * @return the new stream.
+   * @since 3.0.2
+   */
+  public Chain<List<T>> per(final int size, final Duration timeout, final Duration requestTimeout) {
+    return map(Per.per(size, timeout, requestTimeout));
   }
 
   /**
@@ -280,7 +324,7 @@ public class Chain<T> {
    * @since 1.0
    */
   public Chain<T> separate(final T value) {
-    return map(new Separator<>(value));
+    return map(Separator.separator(value));
   }
 
   /**
@@ -292,7 +336,7 @@ public class Chain<T> {
    * @since 1.2.1
    */
   public Chain<T> separate(final Supplier<T> value) {
-    return map(new Separator<>(value));
+    return map(Separator.separator(value));
   }
 
   /**
@@ -302,7 +346,7 @@ public class Chain<T> {
    * @since 3.0
    */
   public Chain<T> split() {
-    return map(new Split<>());
+    return map(Split.split());
   }
 
   /**
@@ -314,6 +358,6 @@ public class Chain<T> {
    * @since 1.4
    */
   public Chain<T> until(final Predicate<T> predicate) {
-    return map(new Until<>(predicate));
+    return map(Until.until(predicate));
   }
 }

@@ -15,6 +15,7 @@ import static net.pincette.rs.Mapper.map;
 import static net.pincette.rs.NotFilter.notFilter;
 import static net.pincette.rs.PassThrough.passThrough;
 import static net.pincette.rs.Pipe.pipe;
+import static net.pincette.rs.Probe.probe;
 import static net.pincette.rs.Reducer.reduce;
 import static net.pincette.rs.Source.of;
 import static net.pincette.util.Pair.pair;
@@ -51,6 +52,7 @@ import net.pincette.rs.encoders.Inflate;
 import net.pincette.rs.encoders.Lines;
 import net.pincette.util.State;
 import net.pincette.util.TimedCache;
+import net.pincette.util.Util.GeneralException;
 
 /**
  * Some utilities.
@@ -117,6 +119,33 @@ public class Util {
     with(publisher).first().get().subscribe(completerFirst(future));
 
     return future;
+  }
+
+  /**
+   * This is a debugging aid that throws an exception when more messages are sent than requested.
+   *
+   * @return The pass through processor.
+   * @param <T> the value type.
+   * @since 3.0.2
+   */
+  public static <T> Processor<T, T> backpressureCheck() {
+    final State<Long> requested = new State<>(0L);
+    final State<Long> sent = new State<>(0L);
+
+    return probe(
+        n -> requested.set(requested.get() + n),
+        v -> {
+          sent.set(sent.get() + 1);
+
+          if (sent.get() > requested.get()) {
+            throw new GeneralException(
+                "Sending "
+                    + sent.get()
+                    + " values, while only "
+                    + requested.get()
+                    + " have been requested.");
+          }
+        });
   }
 
   private static LambdaSubscriber<Void> completerEmpty(final CompletableFuture<Void> future) {

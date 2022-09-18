@@ -1,5 +1,7 @@
 package net.pincette.rs;
 
+import static net.pincette.util.Util.tryToDo;
+
 import java.util.concurrent.Flow.Processor;
 import java.util.function.Consumer;
 
@@ -71,14 +73,22 @@ public class Probe<T> extends ProcessorBase<T, T> {
 
   @Override
   protected void emit(final long number) {
-    more.accept(number);
-    subscription.request(number);
+    tryToDo(
+        () -> {
+          more.accept(number);
+          subscription.request(number);
+        },
+        this::onError);
   }
 
   @Override
   public void onComplete() {
-    complete.run();
-    super.onComplete();
+    tryToDo(
+        () -> {
+          complete.run();
+          super.onComplete();
+        },
+        this::onError);
   }
 
   @Override
@@ -89,7 +99,11 @@ public class Probe<T> extends ProcessorBase<T, T> {
 
   @Override
   public void onNext(final T item) {
-    value.accept(item);
-    subscriber.onNext(item);
+    tryToDo(
+        () -> {
+          value.accept(item);
+          subscriber.onNext(item);
+        },
+        this::onError);
   }
 }

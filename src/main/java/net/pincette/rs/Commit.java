@@ -2,6 +2,7 @@ package net.pincette.rs;
 
 import static java.lang.Boolean.TRUE;
 import static java.util.concurrent.CompletableFuture.completedFuture;
+import static net.pincette.rs.Serializer.dispatch;
 
 import java.util.ArrayList;
 import java.util.Deque;
@@ -15,7 +16,10 @@ import java.util.function.Function;
 /**
  * When the down stream requests more messages this indicates all messages it has received were
  * processed correctly. This is a moment to perform a commit with a function that receives the list
- * of uncommitted messages. This supports at least once semantics.
+ * of uncommitted messages. This supports at least once semantics. Note that if you put a buffer
+ * between this processor and the next persistent one, the last set of messages may not be committed
+ * when the up stream completes. This happens when the number of remaining messages is less than the
+ * request size of the buffer.
  *
  * @param <T> the value type.
  * @author Werner Donn\u00e9
@@ -24,6 +28,7 @@ import java.util.function.Function;
 public class Commit<T> extends ProcessorBase<T, T> {
   private final Function<List<T>, CompletionStage<Boolean>> fn;
   private final Deque<T> uncommitted = new ConcurrentLinkedDeque<>();
+  private boolean completed;
   private long requested;
 
   /**
@@ -49,7 +54,14 @@ public class Commit<T> extends ProcessorBase<T, T> {
         .thenAccept(
             result -> {
               if (TRUE.equals(result)) {
-                request(number);
+                dispatch(
+                    () -> {
+                      if (!completed) {
+                        request(number);
+                      } else {
+                        super.onComplete();
+                      }
+                    });
               }
             });
   }
@@ -57,7 +69,7 @@ public class Commit<T> extends ProcessorBase<T, T> {
   private Optional<List<T>> last() {
     final List<T> result = new ArrayList<>();
 
-    while (!uncommitted.isEmpty() && requested-- > 0) {
+    while (!uncommitted.isEmpty()) {
       result.add(uncommitted.removeLast());
     }
 
@@ -66,18 +78,28 @@ public class Commit<T> extends ProcessorBase<T, T> {
 
   @Override
   public void onComplete() {
-    super.onComplete();
-    last().ifPresent(fn::apply);
+    dispatch(
+        () -> {
+          completed = true;
+
+          if (requested > 0) {
+            super.onComplete();
+          }
+        });
   }
 
   @Override
   public void onNext(final T value) {
-    uncommitted.addFirst(value);
-    subscriber.onNext(value);
+    dispatch(
+        () -> {
+          uncommitted.addFirst(value);
+          --requested;
+          subscriber.onNext(value);
+        });
   }
 
   private void request(final long number) {
-    requested = number;
+    requested += number;
     subscription.request(number);
   }
 }

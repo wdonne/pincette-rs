@@ -1,6 +1,7 @@
 package net.pincette.rs;
 
 import static net.pincette.rs.Box.box;
+import static net.pincette.rs.Buffer.buffer;
 import static net.pincette.rs.Mapper.map;
 import static net.pincette.rs.Serializer.dispatch;
 
@@ -18,10 +19,9 @@ import java.util.function.Function;
  * @since 3.0
  */
 public class Flatten<T> extends ProcessorBase<Publisher<T>, T> {
+  private final Processor<T, T> buf = buffer(1);
   private boolean completed;
   private Monitor monitor;
-  private long requested;
-  private boolean requestedUpstream;
 
   /**
    * Returns a processor that emits the elements from the generated publisher individually.
@@ -48,8 +48,6 @@ public class Flatten<T> extends ProcessorBase<Publisher<T>, T> {
   protected void emit(final long number) {
     dispatch(
         () -> {
-          requested += number;
-
           if (monitor == null) {
             more();
           } else {
@@ -59,10 +57,7 @@ public class Flatten<T> extends ProcessorBase<Publisher<T>, T> {
   }
 
   private void more() {
-    if (!requestedUpstream) {
-      requestedUpstream = true;
-      subscription.request(1);
-    }
+    subscription.request(1);
   }
 
   @Override
@@ -79,18 +74,30 @@ public class Flatten<T> extends ProcessorBase<Publisher<T>, T> {
 
   @Override
   public void onNext(final Publisher<T> publisher) {
-    requestedUpstream = false;
+    if (publisher == null) {
+      throw new NullPointerException("Can't emit null.");
+    }
+
     monitor = new Monitor();
     publisher.subscribe(monitor);
   }
 
+  @Override
+  public void subscribe(final Subscriber<? super T> subscriber) {
+    buf.subscribe(subscriber);
+    super.subscribe(buf);
+  }
+
   private class Monitor implements Subscriber<T> {
+    private long requested;
     private Subscription subscription;
 
     private void more() {
-      if (requested > 0) {
-        subscription.request(1);
-      }
+      dispatch(
+          () -> {
+            ++requested;
+            subscription.request(1);
+          });
     }
 
     @Override
@@ -99,12 +106,12 @@ public class Flatten<T> extends ProcessorBase<Publisher<T>, T> {
           () -> {
             monitor = null;
 
-            if (!completed) {
+            if (completed) {
+              subscriber.onComplete();
+            } else {
               if (requested > 0) {
                 Flatten.this.more();
               }
-            } else {
-              subscriber.onComplete();
             }
           });
     }
@@ -116,9 +123,11 @@ public class Flatten<T> extends ProcessorBase<Publisher<T>, T> {
 
     @Override
     public void onNext(final T value) {
-      --requested;
-      subscriber.onNext(value);
-      more();
+      dispatch(
+          () -> {
+            --requested;
+            subscriber.onNext(value);
+          });
     }
 
     @Override
