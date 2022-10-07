@@ -30,7 +30,6 @@ class TestChain {
   private static void flattenTest1(final Supplier<Processor<List<Integer>, Integer>> processor) {
     final List<Integer> values = values(0, 10);
 
-    /*
     runTest(
         values,
         () -> with(of(values)).per(3).map(processor.get()).map(v -> v + 1).map(v -> v - 1).get());
@@ -45,8 +44,6 @@ class TestChain {
                 .map(v -> v + 1)
                 .map(v -> v - 1)
                 .get());
-
-     */
 
     runTest(
         values,
@@ -247,6 +244,21 @@ class TestChain {
   @DisplayName("chain first2")
   void first2() {
     runTest(list(), () -> with(of(list())).first().get());
+  }
+
+  @Test
+  @DisplayName("chain flatMap")
+  void flatMap() {
+    final int max = 500000;
+    final List<Integer> list = values(0, max);
+
+    runTest(
+        list,
+        () ->
+            with(of(list))
+                .flatMap(i -> with(of(list(i))).mapAsync(v -> supplyAsync(() -> v)).get())
+                .get(),
+        1);
   }
 
   @Test

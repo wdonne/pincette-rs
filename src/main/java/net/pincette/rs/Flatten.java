@@ -48,7 +48,7 @@ public class Flatten<T> extends ProcessorBase<Publisher<T>, T> {
   protected void emit(final long number) {
     dispatch(
         () -> {
-          if (monitor == null) {
+          if (monitor == null || monitor.completed) {
             more();
           } else {
             monitor.more();
@@ -57,7 +57,14 @@ public class Flatten<T> extends ProcessorBase<Publisher<T>, T> {
   }
 
   private void more() {
-    subscription.request(1);
+    dispatch(
+        () -> {
+          if (!completed) {
+            subscription.request(1);
+          } else {
+            subscriber.onComplete();
+          }
+        });
   }
 
   @Override
@@ -66,7 +73,7 @@ public class Flatten<T> extends ProcessorBase<Publisher<T>, T> {
         () -> {
           completed = true;
 
-          if (monitor == null) {
+          if (monitor == null || monitor.completed) {
             subscriber.onComplete();
           }
         });
@@ -89,14 +96,19 @@ public class Flatten<T> extends ProcessorBase<Publisher<T>, T> {
   }
 
   private class Monitor implements Subscriber<T> {
+    private boolean completed;
     private long requested;
     private Subscription subscription;
 
     private void more() {
       dispatch(
           () -> {
-            ++requested;
-            subscription.request(1);
+            if (!completed) {
+              ++requested;
+              subscription.request(1);
+            } else {
+              Flatten.this.more();
+            }
           });
     }
 
@@ -104,14 +116,10 @@ public class Flatten<T> extends ProcessorBase<Publisher<T>, T> {
     public void onComplete() {
       dispatch(
           () -> {
-            monitor = null;
+            completed = true;
 
-            if (completed) {
-              subscriber.onComplete();
-            } else {
-              if (requested > 0) {
-                Flatten.this.more();
-              }
+            if (requested > 0) {
+              Flatten.this.more();
             }
           });
     }

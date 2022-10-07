@@ -22,7 +22,6 @@ import java.util.concurrent.Flow.Publisher;
 import java.util.function.BinaryOperator;
 import java.util.function.Supplier;
 import org.junit.jupiter.api.DisplayName;
-import org.junit.jupiter.api.Tag;
 import org.junit.jupiter.api.Test;
 
 class TestMerge {
@@ -63,25 +62,25 @@ class TestMerge {
   @DisplayName("merge3")
   void merge3() {
     final Supplier<Processor<Integer, Integer>> after = () -> box(per(100), flattenList());
-    final List<Integer> values = values(0, 2000);
+    final List<Integer> values = values(0, 200000);
 
     runTest(
         sort(concat(values, values)),
         () -> subscribe(Merge.of(of(values), of(values)), after.get()),
-        10);
+        1);
   }
 
   @Test
   @DisplayName("merge4")
   void merge4() {
     final Supplier<Processor<Integer, Integer>> after = () -> box(per(100), flattenList());
-    final List<Integer> values = values(0, 1000);
+    final List<Integer> values = values(0, 200000);
     final Supplier<Publisher<Integer>> processor =
         () -> subscribe(of(values), mapAsync(v -> supplyAsync(() -> v)));
 
     runTest(
         sort(concat(values, values)),
         () -> subscribe(Merge.of(processor.get(), processor.get()), after.get()),
-        10);
+        1);
   }
 }

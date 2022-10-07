@@ -128,11 +128,13 @@ public class Merge<T> implements Publisher<T> {
     }
 
     private void requestCandidates(final List<BranchSubscriber> candidates, final long request) {
-      final long[] requests = spreadRequests(request, candidates.size());
+      if (!candidates.isEmpty()) {
+        final long[] requests = spreadRequests(request, candidates.size());
 
-      for (int i = 0; i < requests.length; ++i) {
-        if (requests[i] > 0) {
-          requestBranch(candidates.get(i), requests[i]);
+        for (int i = 0; i < requests.length; ++i) {
+          if (requests[i] > 0) {
+            requestBranch(candidates.get(i), requests[i]);
+          }
         }
       }
     }
