@@ -3,12 +3,14 @@ package net.pincette.rs;
 import static java.util.Arrays.asList;
 import static java.util.Arrays.fill;
 import static java.util.stream.Collectors.toList;
+import static net.pincette.rs.Buffer.buffer;
 import static net.pincette.rs.Serializer.dispatch;
 import static net.pincette.rs.Util.LOGGER;
 
 import java.util.Comparator;
 import java.util.List;
 import java.util.Optional;
+import java.util.concurrent.Flow.Processor;
 import java.util.concurrent.Flow.Publisher;
 import java.util.concurrent.Flow.Subscriber;
 import java.util.concurrent.Flow.Subscription;
@@ -79,7 +81,11 @@ public class Merge<T> implements Publisher<T> {
   }
 
   public void subscribe(final Subscriber<? super T> subscriber) {
-    this.subscriber = subscriber;
+    // The buffer makes sure all branches will be triggered.
+    final Processor<T, T> buffer = buffer(branchSubscribers.size());
+
+    this.subscriber = buffer;
+    buffer.subscribe(subscriber);
     notifySubscriber();
   }
 
@@ -93,7 +99,7 @@ public class Merge<T> implements Publisher<T> {
     }
 
     private List<BranchSubscriber> behind() {
-      return selectSubscribers(s -> !s.complete);
+      return selectSubscribers(s -> !s.complete && s.received < s.requested);
     }
 
     private List<BranchSubscriber> caughtUp() {

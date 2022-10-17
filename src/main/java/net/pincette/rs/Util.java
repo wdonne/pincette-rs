@@ -148,6 +148,15 @@ public class Util {
         });
   }
 
+  public static <T> Publisher<T> completablePublisher(
+      final Supplier<CompletionStage<Publisher<T>>> publisher) {
+    final Processor<T, T> passThrough = passThrough();
+
+    publisher.get().thenAccept(p -> p.subscribe(passThrough));
+
+    return passThrough;
+  }
+
   private static LambdaSubscriber<Void> completerEmpty(final CompletableFuture<Void> future) {
     return new LambdaSubscriber<>(
         v -> {}, () -> future.complete(null), future::completeExceptionally);

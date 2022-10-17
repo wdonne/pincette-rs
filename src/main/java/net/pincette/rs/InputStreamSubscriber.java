@@ -6,6 +6,7 @@ import static java.util.Optional.empty;
 import static java.util.concurrent.locks.LockSupport.unpark;
 import static net.pincette.rs.Util.parking;
 import static net.pincette.util.Pair.pair;
+import static net.pincette.util.Util.rethrow;
 
 import java.io.IOException;
 import java.io.InputStream;
@@ -13,7 +14,6 @@ import java.nio.ByteBuffer;
 import java.util.Optional;
 import java.util.concurrent.Flow.Subscriber;
 import java.util.concurrent.Flow.Subscription;
-import net.pincette.util.Util.GeneralException;
 
 /**
  * This is an input stream that can be used as a reactive streams subscriber. It complies with the
@@ -69,7 +69,7 @@ public class InputStreamSubscriber extends InputStream implements Subscriber<Byt
     ended = true;
     exception = t;
     unpark(thread);
-    throw new GeneralException(t);
+    rethrow(t);
   }
 
   public void onNext(final ByteBuffer buffer) {

@@ -4,6 +4,7 @@ import static java.lang.Long.MAX_VALUE;
 import static java.lang.Thread.currentThread;
 import static java.util.concurrent.locks.LockSupport.unpark;
 import static net.pincette.rs.Util.parking;
+import static net.pincette.util.Util.rethrow;
 
 import java.util.Iterator;
 import java.util.NoSuchElementException;
@@ -14,7 +15,6 @@ import java.util.concurrent.Flow.Subscriber;
 import java.util.concurrent.Flow.Subscription;
 import java.util.function.Consumer;
 import net.pincette.function.SideEffect;
-import net.pincette.util.Util.GeneralException;
 
 /**
  * With this class a publisher can be wrapped in a blocking iterable. It buffers the received
@@ -82,14 +82,14 @@ public class BlockingSubscriber<T> implements Subscriber<T>, Iterable<T> {
     unpark(thread);
   }
 
-  public void onError(final Throwable throwable) {
-    if (throwable == null) {
+  public void onError(final Throwable t) {
+    if (t == null) {
       throw new NullPointerException("Can't throw null.");
     }
 
     complete = true;
     unpark(thread);
-    throw new GeneralException(throwable);
+    rethrow(t);
   }
 
   public void onNext(T value) {

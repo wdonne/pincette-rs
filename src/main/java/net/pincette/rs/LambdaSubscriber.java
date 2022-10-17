@@ -1,12 +1,12 @@
 package net.pincette.rs;
 
+import static net.pincette.util.Util.rethrow;
 import static net.pincette.util.Util.tryToDoRethrow;
 
 import java.util.concurrent.Flow.Subscriber;
 import java.util.concurrent.Flow.Subscription;
 import net.pincette.function.ConsumerWithException;
 import net.pincette.function.RunnableWithException;
-import net.pincette.util.Util.GeneralException;
 
 /**
  * Provides constructors to which lambdas can be given. It requests values from the received
@@ -88,7 +88,7 @@ public class LambdaSubscriber<T> implements Subscriber<T> {
     if (error != null) {
       tryToDoRethrow(() -> error.accept(t));
     } else {
-      throw new GeneralException(t);
+      rethrow(t);
     }
   }
 

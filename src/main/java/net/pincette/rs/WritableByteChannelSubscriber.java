@@ -1,12 +1,12 @@
 package net.pincette.rs;
 
+import static net.pincette.util.Util.rethrow;
 import static net.pincette.util.Util.tryToDoRethrow;
 
 import java.nio.ByteBuffer;
 import java.nio.channels.WritableByteChannel;
 import java.util.concurrent.Flow.Subscriber;
 import java.util.concurrent.Flow.Subscription;
-import net.pincette.util.Util.GeneralException;
 
 /**
  * Consumes a reactive stream of <code>ByteBuffer</code> and writes it to a channel.
@@ -77,8 +77,8 @@ public class WritableByteChannelSubscriber implements Subscriber<ByteBuffer> {
     completed = true;
   }
 
-  public void onError(final Throwable throwable) {
-    throw new GeneralException(throwable);
+  public void onError(final Throwable t) {
+    rethrow(t);
   }
 
   public void onNext(final ByteBuffer buffer) {
