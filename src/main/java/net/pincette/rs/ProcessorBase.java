@@ -1,8 +1,6 @@
 package net.pincette.rs;
 
-import static java.util.logging.Level.SEVERE;
 import static net.pincette.rs.Serializer.dispatch;
-import static net.pincette.rs.Util.LOGGER;
 
 import java.util.concurrent.Flow.Processor;
 import java.util.concurrent.Flow.Subscriber;
@@ -20,6 +18,7 @@ public abstract class ProcessorBase<T, R> implements Processor<T, R> {
   protected Subscriber<? super R> subscriber;
   protected Subscription subscription;
   private boolean error;
+  private Throwable pendingException;
 
   /** Cancels the upstream. */
   public void cancel() {
@@ -45,6 +44,10 @@ public abstract class ProcessorBase<T, R> implements Processor<T, R> {
   private void notifySubscriber() {
     if (subscriber != null && subscription != null) {
       subscriber.onSubscribe(new Backpressure());
+
+      if (pendingException != null) {
+        subscriber.onError(pendingException);
+      }
     }
   }
 
@@ -64,7 +67,7 @@ public abstract class ProcessorBase<T, R> implements Processor<T, R> {
     if (subscriber != null) {
       subscriber.onError(t);
     } else {
-      LOGGER.log(SEVERE, t.getMessage(), t);
+      pendingException = t;
     }
   }
 
