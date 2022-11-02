@@ -1,5 +1,6 @@
 package net.pincette.rs;
 
+import static java.time.Duration.ofNanos;
 import static java.util.Arrays.asList;
 import static java.util.Arrays.fill;
 import static java.util.stream.Collectors.toList;
@@ -82,7 +83,7 @@ public class Merge<T> implements Publisher<T> {
 
   public void subscribe(final Subscriber<? super T> subscriber) {
     // The buffer makes sure all branches will be triggered.
-    final Processor<T, T> buffer = buffer(branchSubscribers.size());
+    final Processor<T, T> buffer = buffer(branchSubscribers.size(), ofNanos(0));
 
     this.subscriber = buffer;
     buffer.subscribe(subscriber);

@@ -6,6 +6,7 @@ import static net.pincette.rs.Async.mapAsync;
 import static net.pincette.rs.Box.box;
 import static net.pincette.rs.FlattenList.flattenList;
 import static net.pincette.rs.Per.per;
+import static net.pincette.rs.Probe.probe;
 import static net.pincette.rs.Source.of;
 import static net.pincette.rs.TestUtil.asListIter;
 import static net.pincette.rs.TestUtil.values;
@@ -81,6 +82,29 @@ class TestMerge {
     runTest(
         sort(concat(values, values)),
         () -> subscribe(Merge.of(processor.get(), processor.get()), after.get()),
+        1);
+  }
+
+  @Test
+  @DisplayName("merge5")
+  void merge5() {
+    final Stall<Integer> stall = new Stall<>();
+    final List<Integer> values = values(0, 10);
+
+    runTest(
+        values,
+        () ->
+            subscribe(
+                Merge.of(of(values), stall),
+                probe(
+                    n -> {
+                      int i = 0;
+                    },
+                    v -> {
+                      if (v == values.size() - 1) {
+                        stall.complete();
+                      }
+                    })),
         1);
   }
 }

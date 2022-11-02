@@ -45,15 +45,17 @@ public abstract class Buffered<T, R> extends ProcessorBase<T, R> {
    * @param requestSize the number of elements that will be requested from the upstream.
    * @param timeout the time after which an additional element is requested, even if the upstream
    *     publisher hasn't sent all requested elements yet. This provides the opportunity to the
-   *     publisher to complete properly when it has fewer elements left than the buffer size. It may
-   *     be <code>null</code>.
+   *     publisher to complete properly when it has fewer elements left than the buffer size. If the
+   *     timeout is zero, the additional element is requested immediately when not everything has
+   *     been received yet. It may be <code>null</code>, in which case this behaviour will not
+   *     occur.
    */
   protected Buffered(final int requestSize, final Duration timeout) {
     if (requestSize < 1) {
       throw new IllegalArgumentException("Request size should be at least 1.");
     }
 
-    if (timeout != null && (timeout.isZero() || timeout.isNegative())) {
+    if (timeout != null && timeout.isNegative()) {
       throw new IllegalArgumentException("The timeout should be positive.");
     }
 
@@ -144,6 +146,12 @@ public abstract class Buffered<T, R> extends ProcessorBase<T, R> {
     // Optional for subclasses.
   }
 
+  private void keepItGoing() {
+    if (shouldWakeUp()) {
+      more(1);
+    }
+  }
+
   private void more() {
     trace(() -> "dispatch more");
 
@@ -153,6 +161,10 @@ public abstract class Buffered<T, R> extends ProcessorBase<T, R> {
 
           if (needMore()) {
             more(requestSize);
+          } else {
+            if (timeout != null && timeout.isZero()) {
+              keepItGoing();
+            }
           }
         });
   }
@@ -244,7 +256,7 @@ public abstract class Buffered<T, R> extends ProcessorBase<T, R> {
   public void onSubscribe(final Subscription subscription) {
     super.onSubscribe(subscription);
 
-    if (timeout != null) {
+    if (timeout != null && !timeout.isZero()) {
       runRequestTimeout();
     }
   }
@@ -256,10 +268,7 @@ public abstract class Buffered<T, R> extends ProcessorBase<T, R> {
                 () -> {
                   if (!isCompleted() && !getError()) {
                     runRequestTimeout();
-
-                    if (shouldWakeUp()) {
-                      more(1);
-                    }
+                    keepItGoing();
                   }
                 }),
         timeout);
