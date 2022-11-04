@@ -4,9 +4,9 @@ import static net.pincette.rs.Util.LOGGER;
 import static net.pincette.util.ScheduledCompletionStage.runAsyncAfter;
 
 import java.time.Duration;
+import java.util.ArrayDeque;
 import java.util.Deque;
 import java.util.List;
-import java.util.concurrent.ConcurrentLinkedDeque;
 import java.util.concurrent.Flow.Subscription;
 import java.util.function.Supplier;
 import net.pincette.util.Util.GeneralException;
@@ -20,7 +20,7 @@ import net.pincette.util.Util.GeneralException;
  * @author Werner Donn\u00e8
  */
 public abstract class Buffered<T, R> extends ProcessorBase<T, R> {
-  private final Deque<R> buf = new ConcurrentLinkedDeque<>();
+  private final Deque<R> buf = new ArrayDeque<>(1000);
   private final long requestSize;
   private final Duration timeout;
   private boolean completed;
