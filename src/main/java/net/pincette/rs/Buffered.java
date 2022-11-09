@@ -1,6 +1,7 @@
 package net.pincette.rs;
 
-import static net.pincette.rs.Util.LOGGER;
+import static java.util.logging.Logger.getLogger;
+import static net.pincette.rs.Util.trace;
 import static net.pincette.util.ScheduledCompletionStage.runAsyncAfter;
 
 import java.time.Duration;
@@ -8,7 +9,7 @@ import java.util.ArrayDeque;
 import java.util.Deque;
 import java.util.List;
 import java.util.concurrent.Flow.Subscription;
-import java.util.function.Supplier;
+import java.util.logging.Logger;
 import net.pincette.util.Util.GeneralException;
 
 /**
@@ -21,8 +22,10 @@ import net.pincette.util.Util.GeneralException;
  */
 public abstract class Buffered<T, R> extends ProcessorBase<T, R> {
   private final Deque<R> buf = new ArrayDeque<>(1000);
+  private final Logger logger = getLogger(getClass().getName());
   private final long requestSize;
   private final Duration timeout;
+  private final boolean tolerateBackpressureViolation;
   private boolean completed;
   private boolean completedSent;
   private boolean lastRequested;
@@ -51,6 +54,11 @@ public abstract class Buffered<T, R> extends ProcessorBase<T, R> {
    *     occur.
    */
   protected Buffered(final int requestSize, final Duration timeout) {
+    this(requestSize, timeout, false);
+  }
+
+  Buffered(
+      final int requestSize, final Duration timeout, final boolean tolerateBackpressureViolation) {
     if (requestSize < 1) {
       throw new IllegalArgumentException("Request size should be at least 1.");
     }
@@ -61,10 +69,11 @@ public abstract class Buffered<T, R> extends ProcessorBase<T, R> {
 
     this.requestSize = requestSize;
     this.timeout = timeout;
+    this.tolerateBackpressureViolation = tolerateBackpressureViolation;
   }
 
   protected void addValues(final List<R> values) {
-    trace(() -> "addValues values: " + values);
+    trace(logger, () -> "addValues values: " + values);
     values.forEach(buf::addFirst);
   }
 
@@ -85,11 +94,11 @@ public abstract class Buffered<T, R> extends ProcessorBase<T, R> {
 
   @Override
   protected void emit(final long number) {
-    trace(() -> "dispatch emit number: " + number);
+    trace(logger, () -> "dispatch emit number: " + number);
 
     dispatch(
         () -> {
-          trace(() -> "emit number: " + number);
+          trace(logger, () -> "emit number: " + number);
           requested += number;
           more();
           emit();
@@ -98,15 +107,15 @@ public abstract class Buffered<T, R> extends ProcessorBase<T, R> {
 
   /** Triggers the downstream emission flow. The <code>onNextAction</code> method could use this. */
   protected void emit() {
-    trace(() -> "dispatch emit");
+    trace(logger, () -> "dispatch emit");
 
     dispatch(
         () -> {
-          trace(() -> "emit");
+          trace(logger, () -> "emit");
 
           if (getRequested() > 0) {
-            trace(() -> "emit buf: " + buf);
-            trace(() -> "emit requested: " + getRequested());
+            trace(logger, () -> "emit buf: " + buf);
+            trace(logger, () -> "emit requested: " + getRequested());
 
             Util.nextValues(buf, getRequested())
                 .ifPresent(
@@ -153,11 +162,11 @@ public abstract class Buffered<T, R> extends ProcessorBase<T, R> {
   }
 
   private void more() {
-    trace(() -> "dispatch more");
+    trace(logger, () -> "dispatch more");
 
     dispatch(
         () -> {
-          trace(() -> "more");
+          trace(logger, () -> "more");
 
           if (needMore()) {
             more(requestSize);
@@ -171,27 +180,29 @@ public abstract class Buffered<T, R> extends ProcessorBase<T, R> {
 
   private void more(final long size) {
     requestedUpstream += size;
-    trace(() -> "more requestedUpstream: " + requestedUpstream);
-    trace(() -> "more subscription request: " + size);
+    trace(logger, () -> "more requestedUpstream: " + requestedUpstream);
+    trace(logger, () -> "more subscription request: " + size);
     subscription.request(size);
   }
 
   private boolean needMore() {
-    return !isCompleted() && received == requestedUpstream && getRequested() > buf.size();
+    return !isCompleted()
+        && ((received == requestedUpstream && getRequested() > buf.size())
+            || tolerateBackpressureViolation);
   }
 
   @Override
   public void onComplete() {
-    trace(() -> "dispatch onComplete");
+    trace(logger, () -> "dispatch onComplete");
 
     dispatch(
         () -> {
-          trace(() -> "onComplete buf: " + buf);
+          trace(logger, () -> "onComplete buf: " + buf);
           completed = true;
           doLast();
 
           if (done()) {
-            trace(() -> "sendComplete from onComplete");
+            trace(logger, () -> "sendComplete from onComplete");
             sendComplete();
           } else {
             emit();
@@ -219,11 +230,11 @@ public abstract class Buffered<T, R> extends ProcessorBase<T, R> {
     }
 
     if (!getError()) {
-      trace(() -> "dispatch onNext value: " + value);
+      trace(logger, () -> "dispatch onNext value: " + value);
 
       dispatch(
           () -> {
-            if (received == requestedUpstream) {
+            if (received == requestedUpstream && !tolerateBackpressureViolation) {
               throw new GeneralException(
                   "Backpressure violation in "
                       + subscription.getClass().getName()
@@ -235,10 +246,10 @@ public abstract class Buffered<T, R> extends ProcessorBase<T, R> {
             }
 
             ++received;
-            trace(() -> "onNext received: " + received);
+            trace(logger, () -> "onNext received: " + received);
 
             if (!onNextAction(value)) {
-              trace(() -> "onNext onNextAction false");
+              trace(logger, () -> "onNext onNextAction false");
               more();
             }
           });
@@ -275,13 +286,13 @@ public abstract class Buffered<T, R> extends ProcessorBase<T, R> {
   }
 
   private void sendComplete() {
-    trace(() -> "dispatch sendComplete");
+    trace(logger, () -> "dispatch sendComplete");
 
     dispatch(
         () -> {
           if (!completedSent) {
             completedSent = true;
-            trace(() -> "send onComplete");
+            trace(logger, () -> "send onComplete");
             subscriber.onComplete();
           }
         });
@@ -294,12 +305,12 @@ public abstract class Buffered<T, R> extends ProcessorBase<T, R> {
    */
   private void sendValues(final List<R> values) {
     if (!getError()) {
-      trace(() -> "dispatch values: " + values);
+      trace(logger, () -> "dispatch values: " + values);
       values.forEach(
           v ->
               dispatch(
                   () -> {
-                    trace(() -> "sendValue: " + v);
+                    trace(logger, () -> "sendValue: " + v);
                     subscriber.onNext(v);
                   }));
 
@@ -309,7 +320,7 @@ public abstract class Buffered<T, R> extends ProcessorBase<T, R> {
               doLast();
 
               if (buf.isEmpty()) {
-                trace(() -> "sendComplete from sendValues");
+                trace(logger, () -> "sendComplete from sendValues");
                 sendComplete();
               }
             }
@@ -323,9 +334,5 @@ public abstract class Buffered<T, R> extends ProcessorBase<T, R> {
         && received < requestedUpstream
         && buf.size() < requestSize
         && requested > 0;
-  }
-
-  private void trace(final Supplier<String> message) {
-    LOGGER.finest(() -> getClass().getName() + ": " + message.get());
   }
 }

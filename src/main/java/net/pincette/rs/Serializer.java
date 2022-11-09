@@ -4,9 +4,10 @@ import static java.util.logging.Level.SEVERE;
 import static net.pincette.rs.Util.LOGGER;
 import static net.pincette.util.Util.doForever;
 import static net.pincette.util.Util.tryToDo;
+import static net.pincette.util.Util.tryToDoRethrow;
 
+import java.util.concurrent.ArrayBlockingQueue;
 import java.util.concurrent.BlockingQueue;
-import java.util.concurrent.LinkedBlockingQueue;
 import java.util.function.Consumer;
 import net.pincette.function.RunnableWithException;
 
@@ -22,18 +23,18 @@ public class Serializer {
     start();
   }
 
-  private static final BlockingQueue<Runnable> queue = new LinkedBlockingQueue<>();
+  private static final BlockingQueue<Runnable> queue = new ArrayBlockingQueue<>(10000);
   private static Thread thread;
 
   private Serializer() {}
 
   public static void dispatch(final Runnable runnable) {
-    queue.add(runnable);
+    tryToDoRethrow(() -> queue.put(runnable));
   }
 
   public static void dispatch(
       final RunnableWithException runnable, final Consumer<Exception> onException) {
-    queue.add(() -> tryToDo(runnable, onException));
+    tryToDoRethrow(() -> queue.put(() -> tryToDo(runnable, onException)));
   }
 
   private static void run() {

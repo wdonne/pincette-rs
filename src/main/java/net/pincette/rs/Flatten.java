@@ -1,15 +1,18 @@
 package net.pincette.rs;
 
+import static java.util.logging.Logger.getLogger;
 import static net.pincette.rs.Box.box;
 import static net.pincette.rs.Buffer.buffer;
 import static net.pincette.rs.Mapper.map;
 import static net.pincette.rs.Serializer.dispatch;
+import static net.pincette.rs.Util.trace;
 
 import java.util.concurrent.Flow.Processor;
 import java.util.concurrent.Flow.Publisher;
 import java.util.concurrent.Flow.Subscriber;
 import java.util.concurrent.Flow.Subscription;
 import java.util.function.Function;
+import java.util.logging.Logger;
 
 /**
  * The processor emits the elements in the received publishers individually.
@@ -19,9 +22,10 @@ import java.util.function.Function;
  * @since 3.0
  */
 public class Flatten<T> extends ProcessorBase<Publisher<T>, T> {
+  private static final Logger LOGGER = getLogger(Flatten.class.getName());
   private final Processor<T, T> buf = buffer(1);
-  private boolean completed;
-  private Monitor monitor;
+  private final Monitor monitor = new Monitor();
+  private boolean pendingRequest;
 
   /**
    * Returns a processor that emits the elements from the generated publisher individually.
@@ -46,37 +50,23 @@ public class Flatten<T> extends ProcessorBase<Publisher<T>, T> {
 
   @Override
   protected void emit(final long number) {
-    dispatch(
-        () -> {
-          if (monitor == null || monitor.completed) {
-            more();
-          } else {
-            monitor.more();
-          }
-        });
+    // There is never a subscriber.
   }
 
   private void more() {
-    dispatch(
-        () -> {
-          if (!completed) {
-            subscription.request(1);
-          } else {
-            subscriber.onComplete();
-          }
-        });
+    trace(LOGGER, () -> "subscription request");
+
+    if (subscription != null) {
+      subscription.request(1);
+    } else {
+      pendingRequest = true;
+    }
   }
 
   @Override
   public void onComplete() {
-    dispatch(
-        () -> {
-          completed = true;
-
-          if (monitor == null || monitor.completed) {
-            subscriber.onComplete();
-          }
-        });
+    trace(LOGGER, () -> "onComplete");
+    monitor.complete();
   }
 
   @Override
@@ -85,63 +75,111 @@ public class Flatten<T> extends ProcessorBase<Publisher<T>, T> {
       throw new NullPointerException("Can't emit null.");
     }
 
-    monitor = new Monitor();
+    trace(LOGGER, () -> "onNext");
     publisher.subscribe(monitor);
+  }
+
+  @Override
+  public void onSubscribe(final Subscription subscription) {
+    super.onSubscribe(subscription);
+
+    if (pendingRequest) {
+      pendingRequest = false;
+      more();
+    }
   }
 
   @Override
   public void subscribe(final Subscriber<? super T> subscriber) {
     buf.subscribe(subscriber);
-    super.subscribe(buf);
+    monitor.subscribe(buf);
   }
 
-  private class Monitor implements Subscriber<T> {
+  private class Monitor implements Processor<T, T> {
     private boolean completed;
     private long requested;
+    private boolean started;
+    private Subscriber<? super T> subscriber;
     private Subscription subscription;
 
-    private void more() {
+    private void complete() {
+      dispatch(() -> completed = true);
+    }
+
+    private void more(final long n) {
       dispatch(
           () -> {
-            if (!completed) {
-              ++requested;
-              subscription.request(1);
+            if (subscription != null) {
+              subscription.request(n);
+            }
+          });
+    }
+
+    public void onComplete() {
+      dispatch(
+          () -> {
+            subscription = null;
+            trace(LOGGER, () -> "monitor onComplete");
+
+            if (completed) {
+              subscriber.onComplete();
             } else {
               Flatten.this.more();
             }
           });
     }
 
-    @Override
-    public void onComplete() {
-      dispatch(
-          () -> {
-            completed = true;
-
-            if (requested > 0) {
-              Flatten.this.more();
-            }
-          });
-    }
-
-    @Override
     public void onError(final Throwable throwable) {
-      Flatten.super.onError(throwable);
+      subscriber.onError(throwable);
     }
 
-    @Override
     public void onNext(final T value) {
       dispatch(
           () -> {
+            trace(LOGGER, () -> "monitor onNext " + value);
             --requested;
             subscriber.onNext(value);
           });
     }
 
-    @Override
     public void onSubscribe(final Subscription subscription) {
-      this.subscription = subscription;
-      more();
+      dispatch(
+          () -> {
+            this.subscription = subscription;
+
+            if (requested > 0) {
+              trace(LOGGER, () -> "monitor subscription request at onSubscribe");
+              more(requested);
+            }
+          });
+    }
+
+    public void subscribe(final Subscriber<? super T> subscriber) {
+      this.subscriber = subscriber;
+      subscriber.onSubscribe(new Backpressure());
+    }
+
+    private class Backpressure implements Subscription {
+      public void cancel() {
+        if (subscription != null) {
+          subscription.cancel();
+        }
+      }
+
+      public void request(final long n) {
+        dispatch(
+            () -> {
+              requested += n;
+
+              if (subscription != null) {
+                trace(LOGGER, () -> "monitor subscription request");
+                more(n);
+              } else if (!started) {
+                started = true;
+                Flatten.this.more();
+              }
+            });
+      }
     }
   }
 }

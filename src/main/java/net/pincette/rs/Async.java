@@ -1,13 +1,12 @@
 package net.pincette.rs;
 
-import static java.util.concurrent.CompletableFuture.completedFuture;
 import static net.pincette.rs.Box.box;
 import static net.pincette.rs.Mapper.map;
-import static net.pincette.util.Collections.list;
+import static net.pincette.rs.Serializer.dispatch;
+import static net.pincette.rs.Util.initialStageDeque;
 
 import java.util.Deque;
 import java.util.concurrent.CompletionStage;
-import java.util.concurrent.ConcurrentLinkedDeque;
 import java.util.concurrent.Flow.Processor;
 import java.util.function.Function;
 
@@ -20,8 +19,7 @@ import java.util.function.Function;
  * @since 1.5
  */
 public class Async<T> extends ProcessorBase<CompletionStage<T>, T> {
-  private final Deque<CompletionStage<Void>> stages =
-      new ConcurrentLinkedDeque<>(list(completedFuture(null)));
+  private final Deque<CompletionStage<Void>> stages = initialStageDeque();
 
   public static <T> Processor<CompletionStage<T>, T> async() {
     return new Async<>();
@@ -50,9 +48,12 @@ public class Async<T> extends ProcessorBase<CompletionStage<T>, T> {
 
   @Override
   public void onComplete() {
-    if (!getError()) {
-      stages.getFirst().thenRunAsync(() -> subscriber.onComplete());
-    }
+    dispatch(
+        () -> {
+          if (!getError()) {
+            stages.getFirst().thenRunAsync(() -> subscriber.onComplete());
+          }
+        });
   }
 
   public void onNext(final CompletionStage<T> stage) {
@@ -60,22 +61,25 @@ public class Async<T> extends ProcessorBase<CompletionStage<T>, T> {
       throw new NullPointerException("Can't emit null.");
     }
 
-    if (!getError()) {
-      stages.addFirst(
-          stages
-              .getFirst()
-              .thenComposeAsync(v -> stage.thenAccept(value -> subscriber.onNext(value)))
-              .exceptionally(
-                  t -> {
-                    subscriber.onError(t);
-                    subscription.cancel();
+    dispatch(
+        () -> {
+          if (!getError()) {
+            stages.addFirst(
+                stages
+                    .getFirst()
+                    .thenComposeAsync(v -> stage.thenAccept(value -> subscriber.onNext(value)))
+                    .exceptionally(
+                        t -> {
+                          subscriber.onError(t);
+                          subscription.cancel();
 
-                    return null;
-                  }));
+                          return null;
+                        }));
 
-      while (stages.size() > 10) {
-        stages.removeLast();
-      }
-    }
+            while (stages.size() > 10) {
+              stages.removeLast();
+            }
+          }
+        });
   }
 }

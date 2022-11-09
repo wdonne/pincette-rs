@@ -4,12 +4,12 @@ import static java.lang.Boolean.TRUE;
 import static java.util.concurrent.CompletableFuture.completedFuture;
 import static net.pincette.rs.Serializer.dispatch;
 
+import java.util.ArrayDeque;
 import java.util.ArrayList;
 import java.util.Deque;
 import java.util.List;
 import java.util.Optional;
 import java.util.concurrent.CompletionStage;
-import java.util.concurrent.ConcurrentLinkedDeque;
 import java.util.concurrent.Flow.Processor;
 import java.util.function.Function;
 
@@ -27,7 +27,7 @@ import java.util.function.Function;
  */
 public class Commit<T> extends ProcessorBase<T, T> {
   private final Function<List<T>, CompletionStage<Boolean>> fn;
-  private final Deque<T> uncommitted = new ConcurrentLinkedDeque<>();
+  private final Deque<T> uncommitted = new ArrayDeque<>(1000);
   private boolean completed;
   private long requested;
 
@@ -48,22 +48,25 @@ public class Commit<T> extends ProcessorBase<T, T> {
 
   @Override
   protected void emit(final long number) {
-    last()
-        .map(fn)
-        .orElseGet(() -> completedFuture(true))
-        .thenAccept(
-            result -> {
-              if (TRUE.equals(result)) {
-                dispatch(
-                    () -> {
-                      if (!completed) {
-                        request(number);
-                      } else {
-                        super.onComplete();
-                      }
-                    });
-              }
-            });
+    dispatch(
+        () -> {
+          last()
+              .map(fn)
+              .orElseGet(() -> completedFuture(true))
+              .thenAccept(
+                  result -> {
+                    if (TRUE.equals(result)) {
+                      dispatch(
+                          () -> {
+                            if (!completed) {
+                              request(number);
+                            } else {
+                              super.onComplete();
+                            }
+                          });
+                    }
+                  });
+        });
   }
 
   private Optional<List<T>> last() {

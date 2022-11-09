@@ -1,12 +1,11 @@
 package net.pincette.rs;
 
-import static java.util.concurrent.CompletableFuture.completedFuture;
-import static net.pincette.util.Collections.list;
+import static net.pincette.rs.Serializer.dispatch;
+import static net.pincette.rs.Util.initialStageDeque;
 
 import java.util.Deque;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionStage;
-import java.util.concurrent.ConcurrentLinkedDeque;
 import java.util.concurrent.Flow.Processor;
 import java.util.function.BiFunction;
 import net.pincette.function.SideEffect;
@@ -23,8 +22,7 @@ import net.pincette.function.SideEffect;
  */
 public class AsyncDepend<T, R> extends ProcessorBase<T, R> {
   private final BiFunction<T, R, CompletionStage<R>> function;
-  private final Deque<CompletionStage<R>> stages =
-      new ConcurrentLinkedDeque<>(list(completedFuture(null)));
+  private final Deque<CompletionStage<R>> stages = initialStageDeque();
 
   public AsyncDepend(final BiFunction<T, R, CompletionStage<R>> function) {
     this.function = function;
@@ -53,9 +51,12 @@ public class AsyncDepend<T, R> extends ProcessorBase<T, R> {
 
   @Override
   public void onComplete() {
-    if (!getError()) {
-      stages.getFirst().thenRunAsync(() -> subscriber.onComplete());
-    }
+    dispatch(
+        () -> {
+          if (!getError()) {
+            stages.getFirst().thenRunAsync(() -> subscriber.onComplete());
+          }
+        });
   }
 
   @Override
@@ -64,33 +65,36 @@ public class AsyncDepend<T, R> extends ProcessorBase<T, R> {
       throw new NullPointerException("Can't emit null.");
     }
 
-    if (!getError()) {
-      final CompletionStage<R> previous = stages.getFirst();
-      final CompletableFuture<R> next = new CompletableFuture<>();
+    dispatch(
+        () -> {
+          if (!getError()) {
+            final CompletionStage<R> previous = stages.getFirst();
+            final CompletableFuture<R> next = new CompletableFuture<>();
 
-      stages.addFirst(next);
+            stages.addFirst(next);
 
-      previous
-          .thenComposeAsync(v -> function.apply(value, v))
-          .thenApply(
-              r ->
-                  SideEffect.<R>run(
-                          () -> {
-                            subscriber.onNext(r);
-                            next.complete(r);
-                          })
-                      .andThenGet(() -> r))
-          .exceptionally(
-              t -> {
-                subscriber.onError(t);
-                subscription.cancel();
+            previous
+                .thenComposeAsync(v -> function.apply(value, v))
+                .thenApply(
+                    r ->
+                        SideEffect.<R>run(
+                                () -> {
+                                  subscriber.onNext(r);
+                                  next.complete(r);
+                                })
+                            .andThenGet(() -> r))
+                .exceptionally(
+                    t -> {
+                      subscriber.onError(t);
+                      subscription.cancel();
 
-                return null;
-              });
+                      return null;
+                    });
 
-      while (stages.size() > 10) {
-        stages.removeLast();
-      }
-    }
+            while (stages.size() > 10) {
+              stages.removeLast();
+            }
+          }
+        });
   }
 }

@@ -6,7 +6,7 @@
 
   <groupId>net.pincette</groupId>
   <artifactId>pincette-rs</artifactId>
-  <version>3.0.7</version>
+  <version>3.0.8</version>
   <packaging>jar</packaging>
   <name>pincette-rs</name>
   <description>Pincette Reactive Streams</description>
