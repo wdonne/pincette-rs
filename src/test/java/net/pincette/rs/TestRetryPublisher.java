@@ -1,5 +1,6 @@
 package net.pincette.rs;
 
+import static java.time.Duration.ofMillis;
 import static java.time.Duration.ofSeconds;
 import static net.pincette.rs.Chain.with;
 import static net.pincette.rs.Source.of;
@@ -37,8 +38,8 @@ class TestRetryPublisher {
                             return v;
                           })
                       .get(),
-              ofSeconds(1));
+              ofMillis(100));
         },
-        1);
+        100);
   }
 }

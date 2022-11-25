@@ -25,7 +25,6 @@ public abstract class Buffered<T, R> extends ProcessorBase<T, R> {
   private final Logger logger = getLogger(getClass().getName());
   private final long requestSize;
   private final Duration timeout;
-  private final boolean tolerateBackpressureViolation;
   private boolean completed;
   private boolean completedSent;
   private boolean lastRequested;
@@ -53,12 +52,7 @@ public abstract class Buffered<T, R> extends ProcessorBase<T, R> {
    *     been received yet. It may be <code>null</code>, in which case this behaviour will not
    *     occur.
    */
-  protected Buffered(final int requestSize, final Duration timeout) {
-    this(requestSize, timeout, false);
-  }
-
-  Buffered(
-      final int requestSize, final Duration timeout, final boolean tolerateBackpressureViolation) {
+  Buffered(final int requestSize, final Duration timeout) {
     if (requestSize < 1) {
       throw new IllegalArgumentException("Request size should be at least 1.");
     }
@@ -69,7 +63,6 @@ public abstract class Buffered<T, R> extends ProcessorBase<T, R> {
 
     this.requestSize = requestSize;
     this.timeout = timeout;
-    this.tolerateBackpressureViolation = tolerateBackpressureViolation;
   }
 
   protected void addValues(final List<R> values) {
@@ -186,9 +179,7 @@ public abstract class Buffered<T, R> extends ProcessorBase<T, R> {
   }
 
   private boolean needMore() {
-    return !isCompleted()
-        && ((received == requestedUpstream && getRequested() > buf.size())
-            || tolerateBackpressureViolation);
+    return !isCompleted() && (received == requestedUpstream && getRequested() > buf.size());
   }
 
   @Override
@@ -234,7 +225,7 @@ public abstract class Buffered<T, R> extends ProcessorBase<T, R> {
 
       dispatch(
           () -> {
-            if (received == requestedUpstream && !tolerateBackpressureViolation) {
+            if (received == requestedUpstream) {
               throw new GeneralException(
                   "Backpressure violation in "
                       + subscription.getClass().getName()

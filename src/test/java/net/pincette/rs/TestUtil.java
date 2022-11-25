@@ -7,7 +7,7 @@ import static java.nio.file.StandardOpenOption.SYNC;
 import static java.nio.file.StandardOpenOption.WRITE;
 import static java.util.Objects.requireNonNull;
 import static java.util.logging.LogManager.getLogManager;
-import static java.util.stream.Collectors.toList;
+import static java.util.stream.Collectors.toCollection;
 import static net.pincette.io.StreamConnector.copy;
 import static net.pincette.rs.Chain.with;
 import static net.pincette.rs.ReadableByteChannelPublisher.readableByteChannel;
@@ -43,8 +43,9 @@ class TestUtil {
                 .readConfiguration(TestUtil.class.getResourceAsStream("/logging.properties")));
   }
 
-  static <T> List<T> asListIter(final Publisher<T> publisher) {
-    return stream(iterate(publisher).iterator()).collect(toList());
+  static <T> List<T> asListIter(final Publisher<T> publisher, final int initialCapacity) {
+    return stream(iterate(publisher).iterator())
+        .collect(toCollection(() -> new ArrayList<>(initialCapacity)));
   }
 
   static File copyResource(final String resource) {
@@ -107,8 +108,8 @@ class TestUtil {
   static <T> void runTest(
       final List<T> target, final Supplier<Publisher<T>> publisher, final int times) {
     for (int i = 0; i < times; ++i) {
-      assertEquals(target, new ArrayList<>(asList(publisher.get())));
-      assertEquals(target, new ArrayList<>(asListIter(publisher.get())));
+      assertEquals(target, new ArrayList<>(asList(publisher.get(), target.size())));
+      assertEquals(target, new ArrayList<>(asListIter(publisher.get(), target.size())));
     }
   }
 

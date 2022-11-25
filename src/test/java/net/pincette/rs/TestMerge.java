@@ -30,9 +30,9 @@ class TestMerge {
       final List<?> target, final Supplier<Publisher<T>> publisher, final int times) {
     for (int i = 0; i < times; ++i) {
       LOGGER.finest("runTest asList");
-      assertEquals(target, sort(asList(publisher.get())));
+      assertEquals(target, sort(asList(publisher.get(), target.size())));
       LOGGER.finest("runTest asListIter");
-      assertEquals(target, sort(asListIter(publisher.get())));
+      assertEquals(target, sort(asListIter(publisher.get(), target.size())));
     }
   }
 

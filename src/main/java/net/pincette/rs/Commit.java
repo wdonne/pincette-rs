@@ -49,24 +49,23 @@ public class Commit<T> extends ProcessorBase<T, T> {
   @Override
   protected void emit(final long number) {
     dispatch(
-        () -> {
-          last()
-              .map(fn)
-              .orElseGet(() -> completedFuture(true))
-              .thenAccept(
-                  result -> {
-                    if (TRUE.equals(result)) {
-                      dispatch(
-                          () -> {
-                            if (!completed) {
-                              request(number);
-                            } else {
-                              super.onComplete();
-                            }
-                          });
-                    }
-                  });
-        });
+        () ->
+            last()
+                .map(fn)
+                .orElseGet(() -> completedFuture(true))
+                .thenAccept(
+                    result -> {
+                      if (TRUE.equals(result)) {
+                        dispatch(
+                            () -> {
+                              if (!completed) {
+                                request(number);
+                              } else {
+                                super.onComplete();
+                              }
+                            });
+                      }
+                    }));
   }
 
   private Optional<List<T>> last() {

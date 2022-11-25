@@ -80,6 +80,10 @@ public class Util {
     return asListAsync(publisher).toCompletableFuture().join();
   }
 
+  public static <T> List<T> asList(final Publisher<T> publisher, final int initialCapacity) {
+    return asListAsync(publisher, initialCapacity).toCompletableFuture().join();
+  }
+
   /**
    * Returns the published values as a list.
    *
@@ -89,9 +93,14 @@ public class Util {
    * @since 1.6
    */
   public static <T> CompletionStage<List<T>> asListAsync(final Publisher<T> publisher) {
+    return asListAsync(publisher, 1000);
+  }
+
+  public static <T> CompletionStage<List<T>> asListAsync(
+      final Publisher<T> publisher, final int initialCapacity) {
     final CompletableFuture<List<T>> future = new CompletableFuture<>();
 
-    publisher.subscribe(completerList(future));
+    publisher.subscribe(completerList(future, initialCapacity));
 
     return future;
   }
@@ -170,8 +179,9 @@ public class Util {
         future::complete, () -> future.complete(null), future::completeExceptionally);
   }
 
-  private static <T> LambdaSubscriber<T> completerList(final CompletableFuture<List<T>> future) {
-    final List<T> result = new ArrayList<>();
+  private static <T> LambdaSubscriber<T> completerList(
+      final CompletableFuture<List<T>> future, final int initialCapacity) {
+    final List<T> result = new ArrayList<>(initialCapacity);
 
     return new LambdaSubscriber<>(
         result::add, () -> future.complete(result), future::completeExceptionally);
@@ -570,7 +580,7 @@ public class Util {
 
     publisher.get().subscribe(result);
 
-    return box(result, buffer(1, null, true));
+    return box(result, buffer(1));
   }
 
   /**
@@ -647,7 +657,7 @@ public class Util {
 
     @Override
     protected void more(final long number) {
-      requested = number;
+      requested += number;
       super.more(number);
     }
 
@@ -668,12 +678,21 @@ public class Util {
     }
 
     @Override
+    public void onNext(final T value) {
+      --requested;
+      super.onNext(value);
+    }
+
+    @Override
     public void onSubscribe(final Subscription subscription) {
       if (this.subscription == null) {
         super.onSubscribe(subscription);
       } else {
         this.subscription = subscription; // Ignore rule 2.5 because that is the purpose here.
-        subscription.request(requested);
+
+        if (requested > 0) {
+          subscription.request(requested);
+        }
       }
     }
   }

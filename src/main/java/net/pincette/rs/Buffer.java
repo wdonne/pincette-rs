@@ -22,21 +22,12 @@ public class Buffer<T> extends Buffered<T, T> {
     super(size, timeout);
   }
 
-  Buffer(final int size, final Duration timeout, final boolean tolerateBackpressureViolation) {
-    super(size, timeout, tolerateBackpressureViolation);
-  }
-
   public static <T> Processor<T, T> buffer(final int size) {
     return new Buffer<>(size);
   }
 
   public static <T> Processor<T, T> buffer(final int size, final Duration timeout) {
     return new Buffer<>(size, timeout);
-  }
-
-  static <T> Processor<T, T> buffer(
-      final int size, final Duration timeout, final boolean tolerateBackpressureViolation) {
-    return new Buffer<>(size, timeout, tolerateBackpressureViolation);
   }
 
   protected boolean onNextAction(final T value) {
