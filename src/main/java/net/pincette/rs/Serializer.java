@@ -6,8 +6,8 @@ import static net.pincette.util.Util.doForever;
 import static net.pincette.util.Util.tryToDo;
 import static net.pincette.util.Util.tryToDoRethrow;
 
-import java.util.concurrent.ArrayBlockingQueue;
 import java.util.concurrent.BlockingQueue;
+import java.util.concurrent.LinkedBlockingQueue;
 import java.util.function.Consumer;
 import net.pincette.function.RunnableWithException;
 
@@ -23,7 +23,7 @@ public class Serializer {
     start();
   }
 
-  private static final BlockingQueue<Runnable> queue = new ArrayBlockingQueue<>(10000);
+  private static final BlockingQueue<Runnable> queue = new LinkedBlockingQueue<>();
   private static Thread thread;
 
   private Serializer() {}

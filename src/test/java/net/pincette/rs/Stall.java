@@ -17,7 +17,7 @@ class Stall<T> implements Publisher<T> {
           }
 
           public void request(final long n) {
-            // Stay nothing.
+            // Stay still.
           }
         });
   }
