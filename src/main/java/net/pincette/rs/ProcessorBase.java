@@ -37,10 +37,6 @@ public abstract class ProcessorBase<T, R> implements Processor<T, R> {
     return error;
   }
 
-  protected void setError(final boolean value) {
-    error = value;
-  }
-
   private void notifySubscriber() {
     if (subscriber != null && subscription != null) {
       subscriber.onSubscribe(new Backpressure());
@@ -83,6 +79,10 @@ public abstract class ProcessorBase<T, R> implements Processor<T, R> {
       this.subscription = subscription;
       notifySubscriber();
     }
+  }
+
+  protected void setError(final boolean value) {
+    error = value;
   }
 
   public void subscribe(final Subscriber<? super R> subscriber) {

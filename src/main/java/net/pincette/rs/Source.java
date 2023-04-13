@@ -57,9 +57,13 @@ public class Source<T> implements Publisher<T> {
       // Nothing to do.
     }
 
+    @SuppressWarnings("java:S1994") // That would break it.
     public void request(final long n) {
       for (long i = 0; i < n && position < list.size(); ++i) {
-        subscriber.onNext(list.get(position++)); // Increment before the call to make it reentrant.
+        final T value = list.get(position);
+
+        ++position; // Increment before the call to make it reentrant.
+        subscriber.onNext(value);
       }
 
       if (position >= list.size() && !complete) {

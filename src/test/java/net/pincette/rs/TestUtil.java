@@ -108,7 +108,7 @@ class TestUtil {
   static <T> void runTest(
       final List<T> target, final Supplier<Publisher<T>> publisher, final int times) {
     for (int i = 0; i < times; ++i) {
-      //assertEquals(target, new ArrayList<>(asList(publisher.get(), target.size())));
+      assertEquals(target, new ArrayList<>(asList(publisher.get(), target.size())));
       assertEquals(target, new ArrayList<>(asListIter(publisher.get(), target.size())));
     }
   }

@@ -1,6 +1,7 @@
 package net.pincette.rs;
 
 import static java.util.Arrays.asList;
+import static net.pincette.rs.Serializer.dispatch;
 import static net.pincette.rs.Util.empty;
 
 import java.util.List;
@@ -18,7 +19,6 @@ import java.util.concurrent.Flow.Subscriber;
 public class Concat<T> implements Publisher<T> {
   private final Chainer chainer = new Chainer();
   private final List<Publisher<T>> publishers;
-  private int position;
 
   public Concat(final List<Publisher<T>> publishers) {
     this.publishers = publishers;
@@ -46,6 +46,7 @@ public class Concat<T> implements Publisher<T> {
   }
 
   private class Chainer extends ProcessorBase<T, T> {
+    private int position;
     private long requested;
 
     @Override
@@ -56,8 +57,11 @@ public class Concat<T> implements Publisher<T> {
 
     @Override
     protected void emit(final long number) {
-      requested += number;
-      more();
+      dispatch(
+          () -> {
+            requested += number;
+            more();
+          });
     }
 
     private void more() {
@@ -68,19 +72,25 @@ public class Concat<T> implements Publisher<T> {
 
     @Override
     public void onComplete() {
-      if (position < publishers.size() - 1) {
-        publishers.get(++position).subscribe(this);
-        more();
-      } else {
-        super.onComplete();
-      }
+      dispatch(
+          () -> {
+            if (position < publishers.size() - 1) {
+              publishers.get(++position).subscribe(this);
+              more();
+            } else {
+              super.onComplete();
+            }
+          });
     }
 
     @Override
     public void onNext(final T item) {
-      --requested;
-      subscriber.onNext(item);
-      more();
+      dispatch(
+          () -> {
+            --requested;
+            subscriber.onNext(item);
+            more();
+          });
     }
   }
 }

@@ -1,9 +1,13 @@
 package net.pincette.rs;
 
+import static java.util.concurrent.CompletableFuture.supplyAsync;
+import static java.util.stream.Collectors.toList;
 import static net.pincette.rs.Chain.with;
 import static net.pincette.rs.TestUtil.runTest;
 import static net.pincette.util.Collections.list;
+import static net.pincette.util.StreamUtil.per;
 
+import java.util.List;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
@@ -31,5 +35,24 @@ class TestConcat {
             with(Concat.of(Source.of(list(0, 1)), Source.of(list(2, 3)), Source.of(list(4, 5))))
                 .buffer(20)
                 .get());
+  }
+
+  @Test
+  @DisplayName("concat4")
+  void concat4() {
+    final List<Integer> values = TestUtil.values(0, 200000);
+
+    runTest(
+        values,
+        () ->
+            Concat.of(
+                per(
+                        per(values.stream(), 100)
+                            .map(Source::of)
+                            .map(s -> with(s).mapAsync(i -> supplyAsync(() -> i)).get()),
+                        10)
+                    .map(Concat::of)
+                    .collect(toList())),
+        1);
   }
 }
