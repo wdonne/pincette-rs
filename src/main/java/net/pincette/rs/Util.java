@@ -640,6 +640,15 @@ public class Util {
     logger.finest(() -> logger.getName() + ": " + message.get());
   }
 
+  public static <T, R> R transform(final Processor<T, R> processor, final T value) {
+    return transformAsync(processor, value).toCompletableFuture().join();
+  }
+
+  public static <T, R> CompletionStage<R> transformAsync(
+      final Processor<T, R> processor, final T value) {
+    return asValueAsync(with(Source.of(value)).map(processor).get());
+  }
+
   private static class Retry<T> extends PassThrough<T> {
     private final Consumer<Throwable> onException;
     private final Supplier<Publisher<T>> publisher;

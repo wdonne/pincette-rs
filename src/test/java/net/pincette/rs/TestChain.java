@@ -359,6 +359,16 @@ class TestChain {
   }
 
   @Test
+  @DisplayName("chain mapAsync 5")
+  void mapAsync5() {
+    final List<Integer> values = values(0, 100);
+
+    runTest(
+        values,
+        () -> with(of(values)).mapAsyncSequential(v -> supplyAsync(() -> v)).buffer(1000).get());
+  }
+
+  @Test
   @DisplayName("chain notFilter")
   void notFilter() {
     runTest(list(1, 3), () -> with(of(list(1, 2, 3, 4))).notFilter(v -> v % 2 == 0).get());

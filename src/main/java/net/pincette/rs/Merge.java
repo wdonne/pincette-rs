@@ -36,7 +36,7 @@ public class Merge<T> implements Publisher<T> {
    *
    * @param publishers the publishers of which all events are forwarded.
    */
-  public Merge(final List<Publisher<T>> publishers) {
+  public Merge(final List<? extends Publisher<T>> publishers) {
     branchSubscribers = publishers.stream().map(this::branchSubscriber).collect(toList());
   }
 
@@ -47,7 +47,7 @@ public class Merge<T> implements Publisher<T> {
    * @param <T> the value type.
    * @return The new publisher.
    */
-  public static <T> Publisher<T> of(final List<Publisher<T>> publishers) {
+  public static <T> Publisher<T> of(final List<? extends Publisher<T>> publishers) {
     return new Merge<>(publishers);
   }
 

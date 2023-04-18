@@ -15,7 +15,7 @@ import java.util.function.Supplier;
  * Chains processors after the initial publisher.
  *
  * @param <T> the object type of the initial publisher.
- * @author Werner Donn\u00e9
+ * @author Werner Donné
  * @since 1.0
  */
 public class Chain<T> {
@@ -231,6 +231,21 @@ public class Chain<T> {
    */
   public <R> Chain<R> map(final Function<T, R> function) {
     return map(Mapper.map(function));
+  }
+
+  /**
+   * Appends a processor with the mapping function, which transforms the objects. The completion
+   * stages are processed in the order of the stream, which completes only after the last stage is
+   * completed. The functions are executed in sequence, which means a function call starts only
+   * after the previous completion stage has completed.
+   *
+   * @param function the mapping function.
+   * @param <R> the object type for the new chain.
+   * @return The new chain.
+   * @since 3.1.2
+   */
+  public <R> Chain<R> mapAsyncSequential(final Function<T, CompletionStage<R>> function) {
+    return map(Async.mapAsyncSequential(function));
   }
 
   /**

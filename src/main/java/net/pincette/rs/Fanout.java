@@ -39,7 +39,8 @@ public class Fanout<T> implements Subscriber<T> {
    *     </code>.
    * @since 3.0
    */
-  public Fanout(final List<Subscriber<T>> subscribers, final UnaryOperator<T> duplicator) {
+  public Fanout(
+      final List<? extends Subscriber<T>> subscribers, final UnaryOperator<T> duplicator) {
     this.subscriptions = subscribers.stream().map(Backpressure::new).collect(toList());
     this.duplicator = duplicator;
   }
@@ -51,7 +52,7 @@ public class Fanout<T> implements Subscriber<T> {
    * @param <T> the value type.
    * @return The new subscriber.
    */
-  public static <T> Subscriber<T> of(final List<Subscriber<T>> subscribers) {
+  public static <T> Subscriber<T> of(final List<? extends Subscriber<T>> subscribers) {
     return new Fanout<>(subscribers, null);
   }
 
@@ -67,7 +68,7 @@ public class Fanout<T> implements Subscriber<T> {
    * @since 3.0
    */
   public static <T> Subscriber<T> of(
-      final List<Subscriber<T>> subscribers, final UnaryOperator<T> duplicator) {
+      final List<? extends Subscriber<T>> subscribers, final UnaryOperator<T> duplicator) {
     return new Fanout<>(subscribers, duplicator);
   }
 

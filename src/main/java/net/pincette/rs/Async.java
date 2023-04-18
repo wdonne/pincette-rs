@@ -15,7 +15,7 @@ import java.util.function.Function;
  * after the last stage has completed.
  *
  * @param <T> the value type.
- * @author Werner Donn\u00e9
+ * @author Werner Donné
  * @since 1.5
  */
 public class Async<T> extends ProcessorBase<CompletionStage<T>, T> {
@@ -39,6 +39,23 @@ public class Async<T> extends ProcessorBase<CompletionStage<T>, T> {
    */
   public static <T, R> Processor<T, R> mapAsync(final Function<T, CompletionStage<R>> function) {
     return box(map(function), async());
+  }
+
+  /**
+   * Returns a processor with the mapping function, which transforms the objects. The completion
+   * stages are processed in the order of the stream, which completes only after the last stage is
+   * completed. The functions are executed in sequence, which means a function call starts only
+   * after the previous completion stage has completed.
+   *
+   * @param function the mapping function.
+   * @param <T> the incoming value type.
+   * @param <R> the outgoing value type.
+   * @return The processor.
+   * @since 3.1.2
+   */
+  public static <T, R> Processor<T, R> mapAsyncSequential(
+      final Function<T, CompletionStage<R>> function) {
+    return AsyncDepend.mapAsync((v, p) -> function.apply(v));
   }
 
   @Override
