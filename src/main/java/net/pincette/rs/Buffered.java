@@ -18,7 +18,7 @@ import net.pincette.util.Util.GeneralException;
  * @param <T> the incoming value type.
  * @param <R> the outgoing value type.
  * @since 3.0
- * @author Werner Donn\u00e8
+ * @author Werner Donné
  */
 public abstract class Buffered<T, R> extends ProcessorBase<T, R> {
   private final Deque<R> buf = new ArrayDeque<>(1000);
@@ -179,7 +179,7 @@ public abstract class Buffered<T, R> extends ProcessorBase<T, R> {
   }
 
   private boolean needMore() {
-    return !isCompleted() && (received == requestedUpstream && getRequested() > buf.size());
+    return !isCompleted() && received == requestedUpstream && getRequested() > buf.size();
   }
 
   @Override

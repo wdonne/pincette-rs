@@ -193,26 +193,22 @@ class TestChain {
   @Test
   @DisplayName("chain commit1")
   void commit1() {
-    final List<Integer> data = list(1, 2, 3, 4);
-    final List<Integer> committed = new ArrayList<>();
-
-    join(
-        with(of(data))
-            .commit(
-                l -> {
-                  committed.addAll(l);
-                  return completedFuture(true);
-                })
-            .buffer(2)
-            .get());
-
-    assertEquals(data, committed);
+    commit(list(1, 2, 3, 4), 2);
   }
 
   @Test
   @DisplayName("chain commit2")
   void commit2() {
-    final List<Integer> data = list(1, 2, 3, 4);
+    commit(list(1, 2, 3, 4), 8);
+  }
+
+  @Test
+  @DisplayName("chain commit3")
+  void commit3() {
+    commit(list(1, 2, 3, 4), 1);
+  }
+
+  private void commit(final List<Integer> data, final int bufferSize) {
     final List<Integer> committed = new ArrayList<>();
 
     join(
@@ -222,10 +218,10 @@ class TestChain {
                   committed.addAll(l);
                   return completedFuture(true);
                 })
-            .buffer(8)
+            .buffer(bufferSize)
             .get());
 
-    assertEquals(list(), committed);
+    assertEquals(data, committed);
   }
 
   @Test
@@ -249,8 +245,7 @@ class TestChain {
   @Test
   @DisplayName("chain flatMap")
   void flatMap() {
-    final int max = 500000;
-    final List<Integer> list = values(0, max);
+    final List<Integer> list = values(0, 500000);
 
     runTest(
         list,

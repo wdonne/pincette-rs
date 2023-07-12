@@ -16,20 +16,16 @@ import java.util.function.Function;
 /**
  * When the down stream requests more messages this indicates all messages it has received were
  * processed correctly. This is a moment to perform a commit with a function that receives the list
- * of uncommitted messages. This supports at least once semantics. Note that if you put a buffer
- * between this processor and the next persistent one, the last set of messages may not be committed
- * when the up stream completes. This happens when the number of remaining messages is less than the
- * request size of the buffer.
+ * of uncommitted messages. This supports at least once semantics.
  *
  * @param <T> the value type.
- * @author Werner Donn\u00e9
+ * @author Werner Donné
  * @since 3.0
  */
 public class Commit<T> extends ProcessorBase<T, T> {
   private final Function<List<T>, CompletionStage<Boolean>> fn;
   private final Deque<T> uncommitted = new ArrayDeque<>(1000);
   private boolean completed;
-  private long requested;
 
   /**
    * Create a Commit processor.
@@ -46,22 +42,22 @@ public class Commit<T> extends ProcessorBase<T, T> {
     return new Commit<>(commit);
   }
 
+  private CompletionStage<Boolean> commit() {
+    return last().map(fn).orElseGet(() -> completedFuture(true));
+  }
+
   @Override
   protected void emit(final long number) {
     dispatch(
         () ->
-            last()
-                .map(fn)
-                .orElseGet(() -> completedFuture(true))
+            commit()
                 .thenAccept(
                     result -> {
                       if (TRUE.equals(result)) {
                         dispatch(
                             () -> {
                               if (!completed) {
-                                request(number);
-                              } else {
-                                super.onComplete();
+                                subscription.request(number);
                               }
                             });
                       }
@@ -83,10 +79,13 @@ public class Commit<T> extends ProcessorBase<T, T> {
     dispatch(
         () -> {
           completed = true;
-
-          if (requested > 0) {
-            super.onComplete();
-          }
+          commit()
+              .thenAccept(
+                  result -> {
+                    if (TRUE.equals(result)) {
+                      super.onComplete();
+                    }
+                  });
         });
   }
 
@@ -95,13 +94,7 @@ public class Commit<T> extends ProcessorBase<T, T> {
     dispatch(
         () -> {
           uncommitted.addFirst(value);
-          --requested;
           subscriber.onNext(value);
         });
-  }
-
-  private void request(final long number) {
-    requested += number;
-    subscription.request(number);
   }
 }
