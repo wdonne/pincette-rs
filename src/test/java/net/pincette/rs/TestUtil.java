@@ -36,13 +36,6 @@ import java.util.function.Supplier;
 import net.pincette.util.Util.GeneralException;
 
 class TestUtil {
-  static {
-    tryToDoRethrow(
-        () ->
-            getLogManager()
-                .readConfiguration(TestUtil.class.getResourceAsStream("/logging.properties")));
-  }
-
   static <T> List<T> asListIter(final Publisher<T> publisher, final int initialCapacity) {
     return stream(iterate(publisher).iterator())
         .collect(toCollection(() -> new ArrayList<>(initialCapacity)));
@@ -58,6 +51,13 @@ class TestUtil {
                 new FileOutputStream(requireNonNull(file))));
 
     return file;
+  }
+
+  static void initLogging() {
+    tryToDoRethrow(
+        () ->
+            getLogManager()
+                .readConfiguration(TestUtil.class.getResourceAsStream("/logging.properties")));
   }
 
   static byte[] read(final File file) {
@@ -107,9 +107,20 @@ class TestUtil {
 
   static <T> void runTest(
       final List<T> target, final Supplier<Publisher<T>> publisher, final int times) {
+    runTest(target, publisher, times, true);
+  }
+
+  static <T> void runTest(
+      final List<T> target,
+      final Supplier<Publisher<T>> publisher,
+      final int times,
+      final boolean withIter) {
     for (int i = 0; i < times; ++i) {
       assertEquals(target, new ArrayList<>(asList(publisher.get(), target.size())));
-      assertEquals(target, new ArrayList<>(asListIter(publisher.get(), target.size())));
+
+      if (withIter) {
+        assertEquals(target, new ArrayList<>(asListIter(publisher.get(), target.size())));
+      }
     }
   }
 

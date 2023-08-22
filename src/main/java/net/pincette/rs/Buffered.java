@@ -1,5 +1,6 @@
 package net.pincette.rs;
 
+import static java.time.Duration.ofNanos;
 import static java.util.logging.Logger.getLogger;
 import static net.pincette.rs.Util.trace;
 import static net.pincette.util.ScheduledCompletionStage.runAsyncAfter;
@@ -25,6 +26,7 @@ public abstract class Buffered<T, R> extends ProcessorBase<T, R> {
   private final Logger logger = getLogger(getClass().getName());
   private final long requestSize;
   private final Duration timeout;
+  private boolean cancelled;
   private boolean completed;
   private boolean completedSent;
   private boolean lastRequested;
@@ -33,12 +35,12 @@ public abstract class Buffered<T, R> extends ProcessorBase<T, R> {
   private long requestedUpstream;
 
   /**
-   * Create a buffered processor.
+   * Create a buffered processor. The timeout is set to 0.
    *
    * @param requestSize the number of elements that will be requested from the upstream.
    */
   protected Buffered(final int requestSize) {
-    this(requestSize, null);
+    this(requestSize, ofNanos(0));
   }
 
   /**
@@ -68,6 +70,18 @@ public abstract class Buffered<T, R> extends ProcessorBase<T, R> {
   protected void addValues(final List<R> values) {
     trace(logger, () -> "addValues values: " + values);
     values.forEach(buf::addFirst);
+  }
+
+  @Override
+  protected void cancelling() {
+    dispatch(
+        () -> {
+          cancelled = true;
+          doLast();
+          emit();
+        });
+
+    super.cancelling();
   }
 
   protected void dispatch(final Runnable action) {
@@ -132,9 +146,18 @@ public abstract class Buffered<T, R> extends ProcessorBase<T, R> {
   }
 
   /**
+   * Indicates whether the stream is cancelled.
+   *
+   * @return The cancellation status.
+   */
+  protected boolean isCancelled() {
+    return cancelled;
+  }
+
+  /**
    * Indicates whether the stream is completed.
    *
-   * @return The completes status.
+   * @return The completion status.
    */
   protected boolean isCompleted() {
     return completed;
@@ -150,6 +173,7 @@ public abstract class Buffered<T, R> extends ProcessorBase<T, R> {
 
   private void keepItGoing() {
     if (shouldWakeUp()) {
+      trace(logger, () -> "shouldWakeUp");
       more(1);
     }
   }
@@ -162,6 +186,7 @@ public abstract class Buffered<T, R> extends ProcessorBase<T, R> {
           trace(logger, () -> "more");
 
           if (needMore()) {
+            trace(logger, () -> "needMore");
             more(requestSize);
           } else {
             if (timeout != null && timeout.isZero()) {
@@ -179,7 +204,10 @@ public abstract class Buffered<T, R> extends ProcessorBase<T, R> {
   }
 
   private boolean needMore() {
-    return !isCompleted() && received == requestedUpstream && getRequested() > buf.size();
+    return !isCompleted()
+        && !isCancelled()
+        && received == requestedUpstream
+        && getRequested() > buf.size();
   }
 
   @Override
@@ -237,12 +265,22 @@ public abstract class Buffered<T, R> extends ProcessorBase<T, R> {
             }
 
             ++received;
-            trace(logger, () -> "onNext received: " + received);
+            trace(
+                logger,
+                () ->
+                    "onNext received: "
+                        + received
+                        + ", requested upstream: "
+                        + requestedUpstream
+                        + ", buffer size: "
+                        + buf.size());
 
             if (!onNextAction(value)) {
               trace(logger, () -> "onNext onNextAction false");
               more();
             }
+
+            trace(logger, () -> "onNextAction buffer size: " + buf.size());
           });
     }
   }
@@ -251,6 +289,7 @@ public abstract class Buffered<T, R> extends ProcessorBase<T, R> {
    * The <code>onNext</code> method uses this method.
    *
    * @param value the received value.
+   * @return Indicated if values have been added or not.
    */
   protected abstract boolean onNextAction(final T value);
 
@@ -324,6 +363,6 @@ public abstract class Buffered<T, R> extends ProcessorBase<T, R> {
         && !getError()
         && received < requestedUpstream
         && buf.size() < requestSize
-        && requested > 0;
+        && getRequested() > 0;
   }
 }

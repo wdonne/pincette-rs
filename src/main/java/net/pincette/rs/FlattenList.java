@@ -11,12 +11,12 @@ import java.util.function.Function;
  * The processor emits the elements in the received lists individually. It uses a shared thread.
  *
  * @param <T> the value type.
- * @author Werner Donn\u00e9
+ * @author Werner Donné
  * @since 3.0
  */
 public class FlattenList<T> extends Buffered<List<T>, T> {
   public FlattenList() {
-    super(1);
+    super(1, null);
   }
 
   /**

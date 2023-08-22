@@ -93,7 +93,7 @@ public class Chain<T> {
 
   /**
    * Buffers a number of values. It always requests the number of values from the publisher that
-   * equals the buffer <code>size</code>.
+   * equals the buffer <code>size</code>. The timeout is set to 0.
    *
    * @param size the buffer size.
    * @return the new stream.
@@ -115,6 +115,17 @@ public class Chain<T> {
    */
   public Chain<T> buffer(final int size, final Duration timeout) {
     return map(Buffer.buffer(size, timeout));
+  }
+
+  /**
+   * Cancels the upstream if the condition is met.
+   *
+   * @param shouldCancel the predicate that checks if the upstream should be cancelled.
+   * @return the new stream.
+   * @since 3.2
+   */
+  public Chain<T> cancel(final Predicate<T> shouldCancel) {
+    return map(Cancel.cancel(shouldCancel));
   }
 
   /**
@@ -291,7 +302,8 @@ public class Chain<T> {
 
   /**
    * Buffers a number of values. It always requests the number of values from the publisher that
-   * equals the buffer <code>size</code>. It emits the buffered values as a list.
+   * equals the buffer <code>size</code>. It emits the buffered values as a list. The <code>
+   * requestTimeout</code> is set to 0.
    *
    * @param size the buffer size.
    * @return the new stream.
@@ -303,7 +315,8 @@ public class Chain<T> {
 
   /**
    * Buffers a number of values. It always requests the number of values from the publisher that
-   * equals the buffer <code>size</code>. It emits the buffered values as a list.
+   * equals the buffer <code>size</code>. It emits the buffered values as a list. The <code>
+   * requestTimeout</code> is set to 0.
    *
    * @param size the buffer size.
    * @param timeout the timeout after which the buffer is flushed. It should be positive.

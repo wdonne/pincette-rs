@@ -6,8 +6,10 @@ import static net.pincette.rs.Box.box;
 import static net.pincette.rs.Chain.with;
 import static net.pincette.rs.Mapper.map;
 import static net.pincette.rs.Source.of;
+import static net.pincette.rs.TestUtil.initLogging;
 import static net.pincette.rs.TestUtil.runTest;
 import static net.pincette.rs.TestUtil.values;
+import static net.pincette.rs.Util.generate;
 import static net.pincette.rs.Util.join;
 import static net.pincette.util.Collections.list;
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -17,10 +19,16 @@ import java.util.List;
 import java.util.concurrent.Flow.Processor;
 import java.util.function.Supplier;
 import net.pincette.util.State;
+import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
 class TestChain {
+  @BeforeAll
+  public static void beforeAll() {
+    initLogging();
+  }
+
   private static void bufferTest(final int size) {
     final List<Integer> values = values(0, 10);
 
@@ -136,6 +144,20 @@ class TestChain {
   }
 
   @Test
+  @DisplayName("cancel")
+  void cancel() {
+    runTest(
+        list(1, 2),
+        () -> {
+          final State<Integer> value = new State<>(0);
+
+          return with(generate(() -> value.set(value.get() + 1))).cancel(v -> v == 2).get();
+        },
+        1000,
+        false); // With iter and hence another thread there is no control over when it stops.
+  }
+
+  @Test
   @DisplayName("chain combinations1")
   void combinations1() {
     runTest(list(-10, -1, 1, -1, 2), () -> with(of(list(1, 2))).before(-10).separate(-1).get());
@@ -206,6 +228,12 @@ class TestChain {
   @DisplayName("chain commit3")
   void commit3() {
     commit(list(1, 2, 3, 4), 1);
+  }
+
+  @Test
+  @DisplayName("chain commit4")
+  void commit4() {
+    commit(list(1, 2, 3, 4), 4);
   }
 
   private void commit(final List<Integer> data, final int bufferSize) {

@@ -335,13 +335,13 @@ public class Util {
     return subscriber ->
         subscriber.onSubscribe(
             new Subscription() {
-              private boolean completed;
-
               public void cancel() {
-                // Nothing to do.
+                subscriber.onComplete();
               }
 
               public void request(final long n) {
+                boolean completed = false;
+
                 for (long i = 0; !completed && i < n; ++i) {
                   final T value = supplier.get();
 

@@ -3,10 +3,11 @@ package net.pincette.rs;
 import static java.time.Duration.ofNanos;
 import static java.util.Arrays.asList;
 import static java.util.Arrays.fill;
+import static java.util.logging.Logger.getLogger;
 import static java.util.stream.Collectors.toList;
 import static net.pincette.rs.Buffer.buffer;
 import static net.pincette.rs.Serializer.dispatch;
-import static net.pincette.rs.Util.LOGGER;
+import static net.pincette.rs.Util.trace;
 
 import java.util.Comparator;
 import java.util.List;
@@ -16,17 +17,18 @@ import java.util.concurrent.Flow.Publisher;
 import java.util.concurrent.Flow.Subscriber;
 import java.util.concurrent.Flow.Subscription;
 import java.util.function.Predicate;
-import java.util.function.Supplier;
+import java.util.logging.Logger;
 
 /**
  * A publisher that emits everything that the given publishers emit.
  *
  * @param <T> the value type.
- * @author Werner Donn\u00e9
+ * @author Werner Donné
  * @since 3.0
  */
 public class Merge<T> implements Publisher<T> {
   private final List<BranchSubscriber> branchSubscribers;
+  private final Logger logger = getLogger(getClass().getName());
   private boolean completed;
   private long requestSequence;
   private Subscriber<? super T> subscriber;
@@ -90,10 +92,6 @@ public class Merge<T> implements Publisher<T> {
     notifySubscriber();
   }
 
-  private void trace(final Supplier<String> message) {
-    LOGGER.finest(() -> getClass().getName() + ": " + message.get());
-  }
-
   private class Backpressure implements Subscription {
     public void cancel() {
       branchSubscribers.forEach(b -> b.subscription.cancel());
@@ -112,7 +110,7 @@ public class Merge<T> implements Publisher<T> {
         throw new IllegalArgumentException("A request must be strictly positive.");
       }
 
-      trace(() -> "request: " + n);
+      trace(logger, () -> "request: " + n);
 
       dispatch(
           () -> {
@@ -123,7 +121,7 @@ public class Merge<T> implements Publisher<T> {
     }
 
     private void requestBranch(final BranchSubscriber s, final long request) {
-      trace(() -> "branch request: " + request + " for subscriber " + s);
+      trace(logger, () -> "branch request: " + request + " for subscriber " + s);
       s.requested += request;
       s.subscription.request(request);
       s.sequence = ++requestSequence;
@@ -191,17 +189,18 @@ public class Merge<T> implements Publisher<T> {
     }
 
     private void complete() {
-      complete = true;
+      dispatch(
+          () -> {
+            complete = true;
 
-      if (!completed && allCompleted()) {
-        completed = true;
-        trace(() -> "Send onComplete to subscriber " + this);
-        subscriber.onComplete();
-      }
+            if (allCompleted()) {
+              sendComplete();
+            }
+          });
     }
 
     public void onComplete() {
-      trace(() -> "onComplete for subscriber " + this);
+      trace(logger, () -> "onComplete for subscriber " + this);
       complete();
     }
 
@@ -211,9 +210,12 @@ public class Merge<T> implements Publisher<T> {
     }
 
     public void onNext(final T item) {
-      trace(() -> "Send onNext to subscriber " + this + ": " + item);
-      ++received;
-      subscriber.onNext(item);
+      dispatch(
+          () -> {
+            trace(logger, () -> "Send onNext to subscriber " + this + ": " + item);
+            ++received;
+            subscriber.onNext(item);
+          });
     }
 
     public void onSubscribe(final Subscription subscription) {
@@ -227,6 +229,17 @@ public class Merge<T> implements Publisher<T> {
         this.subscription = subscription;
         notifySubscriber();
       }
+    }
+
+    private void sendComplete() {
+      dispatch(
+          () -> {
+            if (!completed) {
+              completed = true;
+              trace(logger, () -> "Send onComplete to subscriber " + this);
+              subscriber.onComplete();
+            }
+          });
     }
   }
 }

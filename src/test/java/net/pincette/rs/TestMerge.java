@@ -9,6 +9,7 @@ import static net.pincette.rs.Per.per;
 import static net.pincette.rs.Probe.probe;
 import static net.pincette.rs.Source.of;
 import static net.pincette.rs.TestUtil.asListIter;
+import static net.pincette.rs.TestUtil.initLogging;
 import static net.pincette.rs.TestUtil.values;
 import static net.pincette.rs.Util.LOGGER;
 import static net.pincette.rs.Util.asList;
@@ -22,10 +23,16 @@ import java.util.concurrent.Flow.Processor;
 import java.util.concurrent.Flow.Publisher;
 import java.util.function.BinaryOperator;
 import java.util.function.Supplier;
+import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
 class TestMerge {
+  @BeforeAll
+  public static void beforeAll() {
+    initLogging();
+  }
+
   private static <T> void runTest(
       final List<?> target, final Supplier<Publisher<T>> publisher, final int times) {
     for (int i = 0; i < times; ++i) {

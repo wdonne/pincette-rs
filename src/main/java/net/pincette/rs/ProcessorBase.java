@@ -11,7 +11,7 @@ import java.util.concurrent.Flow.Subscription;
  *
  * @param <T> the value type for the incoming elements.
  * @param <R> the value type for the outgoing elements.
- * @author Werner Donn\u00e9
+ * @author Werner Donné
  * @since 3.0
  */
 public abstract class ProcessorBase<T, R> implements Processor<T, R> {
@@ -22,6 +22,15 @@ public abstract class ProcessorBase<T, R> implements Processor<T, R> {
 
   /** Cancels the upstream. */
   public void cancel() {
+    cancelling();
+  }
+
+  /**
+   * Provides subclasses the opportunity to flush stuff when the stream is cancelled. The
+   * implementation cancels the subscription, which subclasses should also do after doing their own
+   * thing.
+   */
+  protected void cancelling() {
     dispatch(subscription::cancel);
   }
 

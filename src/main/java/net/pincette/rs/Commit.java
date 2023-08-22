@@ -14,9 +14,9 @@ import java.util.concurrent.Flow.Processor;
 import java.util.function.Function;
 
 /**
- * When the down stream requests more messages this indicates all messages it has received were
- * processed correctly. This is a moment to perform a commit with a function that receives the list
- * of uncommitted messages. This supports at least once semantics.
+ * When the down stream requests more messages the stream this indicates all messages it has
+ * received were processed correctly. This is a moment to perform a commit with a function that
+ * receives the list of uncommitted messages. This supports at least once semantics.
  *
  * @param <T> the value type.
  * @author Werner Donné
@@ -26,6 +26,7 @@ public class Commit<T> extends ProcessorBase<T, T> {
   private final Function<List<T>, CompletionStage<Boolean>> fn;
   private final Deque<T> uncommitted = new ArrayDeque<>(1000);
   private boolean completed;
+  private long requested;
 
   /**
    * Create a Commit processor.
@@ -46,22 +47,32 @@ public class Commit<T> extends ProcessorBase<T, T> {
     return last().map(fn).orElseGet(() -> completedFuture(true));
   }
 
+  private void commit(final Runnable run) {
+    commit()
+        .thenAccept(
+            result -> {
+              if (TRUE.equals(result)) {
+                run.run();
+              }
+            });
+  }
+
   @Override
   protected void emit(final long number) {
     dispatch(
         () ->
-            commit()
-                .thenAccept(
-                    result -> {
-                      if (TRUE.equals(result)) {
-                        dispatch(
-                            () -> {
-                              if (!completed) {
-                                subscription.request(number);
-                              }
-                            });
-                      }
-                    }));
+            commit(
+                () ->
+                    dispatch(
+                        () -> {
+                          requested += number;
+
+                          if (!completed) {
+                            subscription.request(number);
+                          } else {
+                            sendComplete();
+                          }
+                        })));
   }
 
   private Optional<List<T>> last() {
@@ -79,13 +90,10 @@ public class Commit<T> extends ProcessorBase<T, T> {
     dispatch(
         () -> {
           completed = true;
-          commit()
-              .thenAccept(
-                  result -> {
-                    if (TRUE.equals(result)) {
-                      super.onComplete();
-                    }
-                  });
+
+          if (requested > 0) {
+            sendComplete();
+          }
         });
   }
 
@@ -94,7 +102,14 @@ public class Commit<T> extends ProcessorBase<T, T> {
     dispatch(
         () -> {
           uncommitted.addFirst(value);
+          --requested;
           subscriber.onNext(value);
         });
+  }
+
+  private void sendComplete() {
+    if (uncommitted.isEmpty()) {
+      super.onComplete();
+    }
   }
 }
