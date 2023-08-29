@@ -649,6 +649,18 @@ public class Util {
     return asValueAsync(with(Source.of(value)).map(processor).get());
   }
 
+  static void throwBackpressureViolation(
+      final Object victim, final Subscription subscription, final long requested) {
+    throw new GeneralException(
+        "Backpressure violation in "
+            + subscription.getClass().getName()
+            + ". Requested "
+            + requested
+            + " elements in "
+            + victim.getClass().getName()
+            + ", which have already been received.");
+  }
+
   private static class Retry<T> extends PassThrough<T> {
     private final Consumer<Throwable> onException;
     private final Supplier<Publisher<T>> publisher;

@@ -3,6 +3,7 @@ package net.pincette.rs;
 import static java.lang.Boolean.TRUE;
 import static java.util.concurrent.CompletableFuture.completedFuture;
 import static net.pincette.rs.Serializer.dispatch;
+import static net.pincette.rs.Util.throwBackpressureViolation;
 
 import java.util.ArrayDeque;
 import java.util.ArrayList;
@@ -101,6 +102,10 @@ public class Commit<T> extends ProcessorBase<T, T> {
   public void onNext(final T value) {
     dispatch(
         () -> {
+          if (requested == 0) {
+            throwBackpressureViolation(this, subscription, requested);
+          }
+
           uncommitted.addFirst(value);
           --requested;
           subscriber.onNext(value);

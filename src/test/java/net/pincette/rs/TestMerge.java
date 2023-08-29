@@ -104,9 +104,7 @@ class TestMerge {
             subscribe(
                 Merge.of(of(values), stall),
                 probe(
-                    n -> {
-                      int i = 0;
-                    },
+                    n -> {},
                     v -> {
                       if (v == values.size() - 1) {
                         stall.complete();

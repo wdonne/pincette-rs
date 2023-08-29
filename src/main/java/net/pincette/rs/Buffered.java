@@ -2,6 +2,7 @@ package net.pincette.rs;
 
 import static java.time.Duration.ofNanos;
 import static java.util.logging.Logger.getLogger;
+import static net.pincette.rs.Util.throwBackpressureViolation;
 import static net.pincette.rs.Util.trace;
 import static net.pincette.util.ScheduledCompletionStage.runAsyncAfter;
 
@@ -11,7 +12,6 @@ import java.util.Deque;
 import java.util.List;
 import java.util.concurrent.Flow.Subscription;
 import java.util.logging.Logger;
-import net.pincette.util.Util.GeneralException;
 
 /**
  * Base class for buffered processors. It uses a shared thread.
@@ -254,14 +254,7 @@ public abstract class Buffered<T, R> extends ProcessorBase<T, R> {
       dispatch(
           () -> {
             if (received == requestedUpstream) {
-              throw new GeneralException(
-                  "Backpressure violation in "
-                      + subscription.getClass().getName()
-                      + ". Requested "
-                      + requestedUpstream
-                      + " elements in "
-                      + getClass().getName()
-                      + ", which have already been received.");
+              throwBackpressureViolation(this, subscription, requestedUpstream);
             }
 
             ++received;

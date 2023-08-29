@@ -3,6 +3,7 @@ package net.pincette.rs;
 import static java.util.Arrays.asList;
 import static net.pincette.rs.Serializer.dispatch;
 import static net.pincette.rs.Util.empty;
+import static net.pincette.rs.Util.throwBackpressureViolation;
 
 import java.util.List;
 import java.util.concurrent.Flow.Publisher;
@@ -13,7 +14,7 @@ import java.util.concurrent.Flow.Subscriber;
  * last given publisher completes.
  *
  * @param <T> the value type.
- * @author Werner Donn\u00e9
+ * @author Werner Donné
  * @since 3.0
  */
 public class Concat<T> implements Publisher<T> {
@@ -87,9 +88,12 @@ public class Concat<T> implements Publisher<T> {
     public void onNext(final T item) {
       dispatch(
           () -> {
+            if (requested == 0) {
+              throwBackpressureViolation(this, subscription, requested);
+            }
+
             --requested;
             subscriber.onNext(item);
-            more();
           });
     }
   }

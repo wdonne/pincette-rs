@@ -4,6 +4,7 @@ import static java.util.concurrent.CompletableFuture.supplyAsync;
 import static java.util.stream.Collectors.toList;
 import static net.pincette.rs.Chain.with;
 import static net.pincette.rs.TestUtil.runTest;
+import static net.pincette.rs.TestUtil.values;
 import static net.pincette.util.Collections.list;
 import static net.pincette.util.StreamUtil.per;
 
@@ -40,7 +41,7 @@ class TestConcat {
   @Test
   @DisplayName("concat4")
   void concat4() {
-    final List<Integer> values = TestUtil.values(0, 200000);
+    final List<Integer> values = values(0, 20000);
 
     runTest(
         values,

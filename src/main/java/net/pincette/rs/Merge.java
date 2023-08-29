@@ -7,6 +7,7 @@ import static java.util.logging.Logger.getLogger;
 import static java.util.stream.Collectors.toList;
 import static net.pincette.rs.Buffer.buffer;
 import static net.pincette.rs.Serializer.dispatch;
+import static net.pincette.rs.Util.throwBackpressureViolation;
 import static net.pincette.rs.Util.trace;
 
 import java.util.Comparator;
@@ -84,7 +85,9 @@ public class Merge<T> implements Publisher<T> {
   }
 
   public void subscribe(final Subscriber<? super T> subscriber) {
-    // The buffer makes sure all branches will be triggered.
+    // The buffer makes sure all branches will be triggered. The buffer keeps it going because
+    // one of the branches may stall and then the total requested amount would never be reached,
+    // in which case the buffer wouldn't ask for more.
     final Processor<T, T> buffer = buffer(branchSubscribers.size(), ofNanos(0));
 
     this.subscriber = buffer;
@@ -121,10 +124,13 @@ public class Merge<T> implements Publisher<T> {
     }
 
     private void requestBranch(final BranchSubscriber s, final long request) {
-      trace(logger, () -> "branch request: " + request + " for subscriber " + s);
-      s.requested += request;
-      s.subscription.request(request);
-      s.sequence = ++requestSequence;
+      dispatch(
+          () -> {
+            trace(logger, () -> "branch request: " + request + " for subscriber " + s);
+            s.requested += request;
+            s.subscription.request(request);
+            s.sequence = ++requestSequence;
+          });
     }
 
     private void requestBranches(final long request) {
@@ -213,6 +219,11 @@ public class Merge<T> implements Publisher<T> {
       dispatch(
           () -> {
             trace(logger, () -> "Send onNext to subscriber " + this + ": " + item);
+
+            if (received == requested) {
+              throwBackpressureViolation(this, subscription, requested);
+            }
+
             ++received;
             subscriber.onNext(item);
           });

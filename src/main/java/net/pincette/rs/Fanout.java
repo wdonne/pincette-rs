@@ -5,6 +5,7 @@ import static java.util.stream.Collectors.toList;
 import static java.util.stream.Stream.concat;
 import static java.util.stream.Stream.empty;
 import static net.pincette.rs.Serializer.dispatch;
+import static net.pincette.rs.Util.throwBackpressureViolation;
 import static net.pincette.util.StreamUtil.stream;
 import static net.pincette.util.StreamUtil.zip;
 
@@ -12,6 +13,7 @@ import java.util.List;
 import java.util.Optional;
 import java.util.concurrent.Flow.Subscriber;
 import java.util.concurrent.Flow.Subscription;
+import java.util.function.Function;
 import java.util.function.Supplier;
 import java.util.function.UnaryOperator;
 import java.util.stream.Stream;
@@ -21,13 +23,13 @@ import java.util.stream.Stream;
  * defined by the slowest subscriber.
  *
  * @param <T> the value type.
- * @author Werner Donn\u00e9
+ * @author Werner Donné
  * @since 1.6
  */
 public class Fanout<T> implements Subscriber<T> {
   private final UnaryOperator<T> duplicator;
   private final List<Backpressure> subscriptions;
-  private boolean completed;
+  private long requested;
   private Subscription subscription;
 
   /**
@@ -85,23 +87,28 @@ public class Fanout<T> implements Subscriber<T> {
   }
 
   public void onComplete() {
-    completed = true;
-    subscriptions.forEach(s -> s.subscriber.onComplete());
+    subscriptions.forEach(s -> dispatch(s.subscriber::onComplete));
   }
 
   public void onError(final Throwable t) {
     subscriptions.forEach(s -> s.subscriber.onError(t));
   }
 
-  public void onNext(final T v) {
-    if (v == null) {
+  public void onNext(final T value) {
+    if (value == null) {
       throw new NullPointerException("Can't emit null.");
     }
 
-    if (!completed) {
-      zip(subscriptions.stream(), values(v))
-          .forEach(pair -> pair.first.subscriber.onNext(pair.second));
-    }
+    dispatch(
+        () -> {
+          if (requested == 0) {
+            throwBackpressureViolation(this, subscription, requested);
+          }
+
+          --requested;
+          subscriptions.forEach(s -> --s.requested);
+          sendValues(value);
+        });
   }
 
   public void onSubscribe(final Subscription subscription) {
@@ -117,6 +124,10 @@ public class Fanout<T> implements Subscriber<T> {
     }
   }
 
+  private void sendValues(final T value) {
+    zip(subscriptions.stream(), values(value)).forEach(pair -> pair.first.sendValue(pair.second));
+  }
+
   private Stream<T> values(final T v) {
     final Supplier<T> get = () -> duplicator != null ? duplicator.apply(v) : v;
 
@@ -130,6 +141,7 @@ public class Fanout<T> implements Subscriber<T> {
   private class Backpressure implements Subscription {
     private final Subscriber<T> subscriber;
     private boolean cancelled;
+    private long commonRequested;
     private long requested;
 
     private Backpressure(final Subscriber<T> subscriber) {
@@ -150,12 +162,17 @@ public class Fanout<T> implements Subscriber<T> {
       }
     }
 
-    private Optional<Long> lowestCommon() {
+    private Optional<Long> lowestCommon(final Function<Backpressure, Long> value) {
       return subscriptions.stream()
           .filter(s -> !s.cancelled)
-          .map(s -> s.requested)
+          .map(value)
           .min((r1, r2) -> (int) (r1 - r2))
           .filter(r -> r > 0);
+    }
+
+    private void more(final long n) {
+      Fanout.this.requested += n;
+      subscription.request(n);
     }
 
     public void request(final long number) {
@@ -166,13 +183,22 @@ public class Fanout<T> implements Subscriber<T> {
       dispatch(
           () -> {
             requested += number;
-            lowestCommon()
+            commonRequested += number;
+            lowestCommon(s -> s.commonRequested)
                 .ifPresent(
                     r -> {
-                      subscriptions.forEach(s -> s.requested -= r);
-                      subscription.request(r);
+                      subscriptions.forEach(s -> s.commonRequested -= r);
+                      more(r);
                     });
           });
+    }
+
+    private void sendValue(final T value) {
+      if (requested < 0) {
+        throwBackpressureViolation(this, subscription, requested);
+      }
+
+      subscriber.onNext(value);
     }
   }
 }
