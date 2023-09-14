@@ -1,7 +1,5 @@
 package net.pincette.rs;
 
-import static net.pincette.rs.Serializer.dispatch;
-
 import java.util.ArrayList;
 import java.util.Deque;
 import java.util.List;
@@ -75,6 +73,10 @@ public class DequePublisher<T> implements Publisher<T> {
     return result;
   }
 
+  private void dispatch(final Runnable action) {
+    Serializer.dispatch(action::run, this::onError);
+  }
+
   private void emit() {
     if (subscriber != null && !completed) {
       final List<T> elements = consume();
@@ -95,6 +97,12 @@ public class DequePublisher<T> implements Publisher<T> {
    */
   public Deque<T> getDeque() {
     return deque;
+  }
+
+  private void onError(final Throwable t) {
+    if (subscriber != null) {
+      subscriber.onError(t);
+    }
   }
 
   public void subscribe(final Subscriber<? super T> subscriber) {

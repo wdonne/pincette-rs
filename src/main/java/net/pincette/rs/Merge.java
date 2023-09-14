@@ -6,7 +6,6 @@ import static java.util.Arrays.fill;
 import static java.util.logging.Logger.getLogger;
 import static java.util.stream.Collectors.toList;
 import static net.pincette.rs.Buffer.buffer;
-import static net.pincette.rs.Serializer.dispatch;
 import static net.pincette.rs.Util.throwBackpressureViolation;
 import static net.pincette.rs.Util.trace;
 
@@ -78,9 +77,19 @@ public class Merge<T> implements Publisher<T> {
     return s;
   }
 
+  private void dispatch(final Runnable action) {
+    Serializer.dispatch(action::run, this::onError);
+  }
+
   private void notifySubscriber() {
     if (subscriber != null && allSubscriptions()) {
       subscriber.onSubscribe(new Backpressure());
+    }
+  }
+
+  private void onError(final Throwable t) {
+    if (subscriber != null) {
+      subscriber.onError(t);
     }
   }
 

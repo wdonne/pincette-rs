@@ -1,7 +1,6 @@
 package net.pincette.rs;
 
 import static java.util.Arrays.asList;
-import static net.pincette.rs.Serializer.dispatch;
 import static net.pincette.rs.Util.empty;
 import static net.pincette.rs.Util.throwBackpressureViolation;
 

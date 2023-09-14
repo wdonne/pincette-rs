@@ -23,6 +23,7 @@ import static net.pincette.rs.Source.of;
 import static net.pincette.util.Pair.pair;
 import static net.pincette.util.ScheduledCompletionStage.composeAsyncAfter;
 import static net.pincette.util.StreamUtil.rangeExclusive;
+import static net.pincette.util.Util.tryToDoRethrow;
 
 import java.nio.ByteBuffer;
 import java.time.Duration;
@@ -501,15 +502,16 @@ public class Util {
   }
 
   /**
-   * Returns a subscriber that reacts to the <code>onNext</code> event.
+   * Returns a processor that reacts to the <code>onComplete</code> event. It is transparent to all
+   * events.
    *
-   * @param consumer the given function.
+   * @param runnable the given function.
    * @param <T> the value type.
-   * @return The subscriber.
-   * @since 3.0
+   * @return The processor.
+   * @since 3.2.2
    */
-  public static <T> Subscriber<T> onNext(final ConsumerWithException<T> consumer) {
-    return lambdaSubscriber(consumer);
+  public static <T> Processor<T, T> onCompleteProcessor(final RunnableWithException runnable) {
+    return probe(n -> {}, v -> {}, () -> tryToDoRethrow(runnable));
   }
 
   /**
@@ -522,6 +524,45 @@ public class Util {
    */
   public static <T> Subscriber<T> onError(final ConsumerWithException<Throwable> consumer) {
     return lambdaSubscriber(v -> {}, () -> {}, consumer);
+  }
+
+  /**
+   * Returns a processor that reacts to the <code>onError</code> event. It is transparent to all
+   * events.
+   *
+   * @param consumer the given function.
+   * @param <T> the value type.
+   * @return The processor.
+   * @since 3.2.2
+   */
+  public static <T> Processor<T, T> onErrorProcessor(
+      final ConsumerWithException<Throwable> consumer) {
+    return probe(n -> {}, v -> {}, () -> {}, t -> tryToDoRethrow(() -> consumer.accept(t)));
+  }
+
+  /**
+   * Returns a subscriber that reacts to the <code>onNext</code> event.
+   *
+   * @param consumer the given function.
+   * @param <T> the value type.
+   * @return The subscriber.
+   * @since 3.0
+   */
+  public static <T> Subscriber<T> onNext(final ConsumerWithException<T> consumer) {
+    return lambdaSubscriber(consumer);
+  }
+
+  /**
+   * Returns a processor that reacts to the <code>onNext</code> event. It is transparent to all
+   * events.
+   *
+   * @param consumer the given function.
+   * @param <T> the value type.
+   * @return The processor.
+   * @since 3.2.2
+   */
+  public static <T> Processor<T, T> onNextProcessor(final ConsumerWithException<T> consumer) {
+    return probe(n -> {}, v -> tryToDoRethrow(() -> consumer.accept(v)));
   }
 
   static void parking(final Object blocker, final long timeout) {

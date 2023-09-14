@@ -84,10 +84,6 @@ public abstract class Buffered<T, R> extends ProcessorBase<T, R> {
     super.cancelling();
   }
 
-  protected void dispatch(final Runnable action) {
-    Serializer.dispatch(action::run, this::onError);
-  }
-
   private boolean done() {
     return completed && (received == 0 || buf.isEmpty());
   }

@@ -1,7 +1,5 @@
 package net.pincette.rs;
 
-import static net.pincette.rs.Serializer.dispatch;
-
 import java.util.concurrent.Flow.Processor;
 import java.util.concurrent.Flow.Subscriber;
 import java.util.concurrent.Flow.Subscription;
@@ -38,6 +36,10 @@ public abstract class ProcessorBase<T, R> implements Processor<T, R> {
   protected void complete() {
     onComplete();
     cancel();
+  }
+
+  protected void dispatch(final Runnable action) {
+    Serializer.dispatch(action::run, this::onError);
   }
 
   protected abstract void emit(final long number);

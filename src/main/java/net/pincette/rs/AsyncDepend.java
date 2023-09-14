@@ -1,6 +1,5 @@
 package net.pincette.rs;
 
-import static net.pincette.rs.Serializer.dispatch;
 import static net.pincette.rs.Util.initialStageDeque;
 
 import java.util.Deque;

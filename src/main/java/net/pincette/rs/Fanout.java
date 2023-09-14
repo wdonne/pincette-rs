@@ -4,7 +4,6 @@ import static java.util.Arrays.asList;
 import static java.util.stream.Collectors.toList;
 import static java.util.stream.Stream.concat;
 import static java.util.stream.Stream.empty;
-import static net.pincette.rs.Serializer.dispatch;
 import static net.pincette.rs.Util.throwBackpressureViolation;
 import static net.pincette.util.StreamUtil.stream;
 import static net.pincette.util.StreamUtil.zip;
@@ -84,6 +83,10 @@ public class Fanout<T> implements Subscriber<T> {
   @SafeVarargs
   public static <T> Subscriber<T> of(final Subscriber<T>... subscribers) {
     return new Fanout<>(asList(subscribers), null);
+  }
+
+  private void dispatch(final Runnable action) {
+    Serializer.dispatch(action::run, this::onError);
   }
 
   public void onComplete() {

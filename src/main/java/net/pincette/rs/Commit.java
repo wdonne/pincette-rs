@@ -2,7 +2,6 @@ package net.pincette.rs;
 
 import static java.lang.Boolean.TRUE;
 import static java.util.concurrent.CompletableFuture.completedFuture;
-import static net.pincette.rs.Serializer.dispatch;
 import static net.pincette.rs.Util.throwBackpressureViolation;
 
 import java.util.ArrayDeque;

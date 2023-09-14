@@ -1,7 +1,5 @@
 package net.pincette.rs;
 
-import static net.pincette.rs.Serializer.dispatch;
-
 import java.util.concurrent.Flow.Processor;
 
 /**

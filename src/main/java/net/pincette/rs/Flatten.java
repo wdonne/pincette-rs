@@ -4,7 +4,6 @@ import static java.util.logging.Logger.getLogger;
 import static net.pincette.rs.Box.box;
 import static net.pincette.rs.Buffer.buffer;
 import static net.pincette.rs.Mapper.map;
-import static net.pincette.rs.Serializer.dispatch;
 import static net.pincette.rs.Util.throwBackpressureViolation;
 import static net.pincette.rs.Util.trace;
 

@@ -75,7 +75,10 @@ public class Probe<T> extends ProcessorBase<T, T> {
   protected void emit(final long number) {
     tryToDo(
         () -> {
-          more.accept(number);
+          if (more != null) {
+            more.accept(number);
+          }
+
           subscription.request(number);
         },
         this::onError);
@@ -85,7 +88,10 @@ public class Probe<T> extends ProcessorBase<T, T> {
   public void onComplete() {
     tryToDo(
         () -> {
-          complete.run();
+          if (complete != null) {
+            complete.run();
+          }
+
           super.onComplete();
         },
         this::onError);
@@ -93,7 +99,10 @@ public class Probe<T> extends ProcessorBase<T, T> {
 
   @Override
   public void onError(final Throwable t) {
-    error.accept(t);
+    if (error != null) {
+      error.accept(t);
+    }
+
     super.onError(t);
   }
 
@@ -101,7 +110,10 @@ public class Probe<T> extends ProcessorBase<T, T> {
   public void onNext(final T item) {
     tryToDo(
         () -> {
-          value.accept(item);
+          if (value != null) {
+            value.accept(item);
+          }
+
           subscriber.onNext(item);
         },
         this::onError);
