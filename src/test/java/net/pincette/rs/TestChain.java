@@ -271,8 +271,8 @@ class TestChain {
   }
 
   @Test
-  @DisplayName("chain flatMap")
-  void flatMap() {
+  @DisplayName("chain flatMap1")
+  void flatMap1() {
     final List<Integer> list = values(0, 500000);
 
     runTest(
@@ -280,6 +280,20 @@ class TestChain {
         () ->
             with(of(list))
                 .flatMap(i -> with(of(list(i))).mapAsync(v -> supplyAsync(() -> v)).get())
+                .get(),
+        1);
+  }
+
+  @Test
+  @DisplayName("chain flatMap2")
+  void flatMap2() {
+    final List<List<Integer>> lists = list(values(0, 3), list(), values(3, 6));
+
+    runTest(
+        values(0, 6),
+        () ->
+            with(of(values(0, 3)))
+                .flatMap(i -> with(of(lists.get(i))).mapAsync(v -> supplyAsync(() -> v)).get())
                 .get(),
         1);
   }

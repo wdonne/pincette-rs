@@ -28,7 +28,6 @@ import java.util.stream.Stream;
 public class Fanout<T> implements Subscriber<T> {
   private final UnaryOperator<T> duplicator;
   private final List<Backpressure> subscriptions;
-  private long requested;
   private Subscription subscription;
 
   /**
@@ -102,16 +101,7 @@ public class Fanout<T> implements Subscriber<T> {
       throw new NullPointerException("Can't emit null.");
     }
 
-    dispatch(
-        () -> {
-          if (requested == 0) {
-            throwBackpressureViolation(this, subscription, requested);
-          }
-
-          --requested;
-          subscriptions.forEach(s -> --s.requested);
-          sendValues(value);
-        });
+    sendValues(value);
   }
 
   public void onSubscribe(final Subscription subscription) {
@@ -174,7 +164,6 @@ public class Fanout<T> implements Subscriber<T> {
     }
 
     private void more(final long n) {
-      Fanout.this.requested += n;
       subscription.request(n);
     }
 
@@ -197,11 +186,14 @@ public class Fanout<T> implements Subscriber<T> {
     }
 
     private void sendValue(final T value) {
-      if (requested < 0) {
-        throwBackpressureViolation(this, subscription, requested);
-      }
+      dispatch(
+          () -> {
+            if (--requested < 0) {
+              throwBackpressureViolation(this, subscription, requested);
+            }
 
-      subscriber.onNext(value);
+            subscriber.onNext(value);
+          });
     }
   }
 }

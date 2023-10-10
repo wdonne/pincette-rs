@@ -290,6 +290,16 @@ public class Chain<T> {
   }
 
   /**
+   * Blocks cancel signals from being propagated to the upstream.
+   *
+   * @return A new chain with the same object type.
+   * @since 3.3
+   */
+  public Chain<T> neverCancel() {
+    return map(NeverCancel.neverCancel());
+  }
+
+  /**
    * Appends a processor that filters objects using negation of the <code>predicate</code> function.
    *
    * @param predicate the predicate function.

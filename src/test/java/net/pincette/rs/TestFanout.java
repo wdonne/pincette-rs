@@ -1,9 +1,12 @@
 package net.pincette.rs;
 
+import static java.time.Duration.ofSeconds;
 import static java.util.concurrent.CompletableFuture.supplyAsync;
 import static net.pincette.rs.Buffer.buffer;
 import static net.pincette.rs.Chain.with;
 import static net.pincette.rs.Source.of;
+import static net.pincette.rs.TestUtil.values;
+import static net.pincette.rs.Util.duplicateFilter;
 import static net.pincette.util.Collections.list;
 import static net.pincette.util.Util.tryToDo;
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -38,10 +41,15 @@ class TestFanout {
       final BinaryOperator<Subscriber<Integer>> fanout) {
     final List<Integer> first = new ArrayList<>();
     final CountDownLatch latch = new CountDownLatch(2);
-    final List<Integer> values = list(1, 2, 3, 4);
+    final List<Integer> values = values(0, 1000);
     final List<Integer> second = new ArrayList<>();
 
-    of(values)
+    with(Merge.of(
+            with(of(values)).flatMap(Source::of).mapAsync(v -> supplyAsync(() -> v)).get(),
+            with(of(values)).flatMap(Source::of).mapAsync(v -> supplyAsync(() -> v)).get()))
+        .buffer(2)
+        .map(duplicateFilter(v -> v, ofSeconds(1)))
+        .get()
         .subscribe(fanout.apply(subscriber.apply(first, latch), subscriber.apply(second, latch)));
     tryToDo(latch::await);
     assertEquals(values, first);
