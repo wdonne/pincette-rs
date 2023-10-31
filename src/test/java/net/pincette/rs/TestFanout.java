@@ -5,8 +5,11 @@ import static java.util.concurrent.CompletableFuture.supplyAsync;
 import static net.pincette.rs.Buffer.buffer;
 import static net.pincette.rs.Chain.with;
 import static net.pincette.rs.Source.of;
+import static net.pincette.rs.TestUtil.runTest;
 import static net.pincette.rs.TestUtil.values;
+import static net.pincette.rs.Util.devNull;
 import static net.pincette.rs.Util.duplicateFilter;
+import static net.pincette.rs.Util.tap;
 import static net.pincette.util.Collections.list;
 import static net.pincette.util.Util.tryToDo;
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -88,5 +91,12 @@ class TestFanout {
     test(
         (results, latch) -> subscriber(results::add, latch::countDown, 4),
         (s1, s2) -> Fanout.of(list(s1, s2), v -> v));
+  }
+
+  @Test
+  @DisplayName("fanout6")
+  void fanout6() {
+    runTest(
+        values(0, 6), () -> with(of(values(0, 10))).map(tap(devNull())).cancel(v -> v == 5).get());
   }
 }

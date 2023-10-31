@@ -1,5 +1,6 @@
 package net.pincette.rs;
 
+
 import java.util.ArrayList;
 import java.util.Deque;
 import java.util.List;
@@ -32,6 +33,14 @@ public class DequePublisher<T> implements Publisher<T> {
     return new DequePublisher<>();
   }
 
+  private void added(final Deque<T> deque) {
+    if (closed) {
+      throw new UnsupportedOperationException("The publisher is already closed.");
+    }
+
+    dispatch(this::emit);
+  }
+
   /**
    * After closing, it is not allowed to add more elements to the deque. As soon as the deque is
    * depleted the subscriber will be notified of the end of the stream.
@@ -45,14 +54,6 @@ public class DequePublisher<T> implements Publisher<T> {
             complete();
           }
         });
-  }
-
-  private void added(final Deque<T> deque) {
-    if (closed) {
-      throw new UnsupportedOperationException("The publisher is already closed.");
-    }
-
-    dispatch(this::emit);
   }
 
   private void complete() {

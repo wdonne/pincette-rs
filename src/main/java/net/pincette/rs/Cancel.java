@@ -5,7 +5,7 @@ import java.util.concurrent.Flow.Subscription;
 import java.util.function.Predicate;
 
 /**
- * Cancels the upstream if the given condition is met.
+ * Cancels the upstream if the given condition is met and completes the stream.
  *
  * @param <T> the value type.
  * @author Werner Donné
@@ -32,12 +32,15 @@ public class Cancel<T> extends PassThrough<T> {
   public void onNext(final T value) {
     dispatch(
         () -> {
-          cancelled = shouldCancel.test(value);
-          super.onNext(
-              value); // Do this first to preserve order because cancel may produce messages.
+          if (!cancelled) {
+            cancelled = shouldCancel.test(value);
+            super.onNext(
+                value); // Do this first to preserve order because cancel may produce messages.
 
-          if (cancelled) {
-            subscription.cancel();
+            if (cancelled) {
+              subscription.cancel();
+              super.onComplete();
+            }
           }
         });
   }

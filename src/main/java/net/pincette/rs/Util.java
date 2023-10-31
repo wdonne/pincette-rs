@@ -20,6 +20,7 @@ import static net.pincette.rs.Pipe.pipe;
 import static net.pincette.rs.Probe.probe;
 import static net.pincette.rs.Reducer.reduce;
 import static net.pincette.rs.Source.of;
+import static net.pincette.util.Collections.list;
 import static net.pincette.util.Pair.pair;
 import static net.pincette.util.ScheduledCompletionStage.composeAsyncAfter;
 import static net.pincette.util.StreamUtil.rangeExclusive;
@@ -161,6 +162,17 @@ public class Util {
         });
   }
 
+  /**
+   * Subscribes to the publisher and cancels it immediately.
+   *
+   * @param publisher the given publisher.
+   * @param <T> the value type.
+   * @since 3.4
+   */
+  public static <T> void cancel(final Publisher<T> publisher) {
+    publisher.subscribe(lambdaSubscriber(v -> {}, () -> {}, t -> {}, Subscription::cancel));
+  }
+
   public static <T> Publisher<T> completablePublisher(
       final Supplier<CompletionStage<Publisher<T>>> publisher) {
     final Processor<T, T> passThrough = passThrough();
@@ -170,21 +182,20 @@ public class Util {
     return passThrough;
   }
 
-  private static LambdaSubscriber<Void> completerEmpty(final CompletableFuture<Void> future) {
-    return new LambdaSubscriber<>(
-        v -> {}, () -> future.complete(null), future::completeExceptionally);
+  private static Subscriber<Void> completerEmpty(final CompletableFuture<Void> future) {
+    return lambdaSubscriber(v -> {}, () -> future.complete(null), future::completeExceptionally);
   }
 
-  private static <T> LambdaSubscriber<T> completerFirst(final CompletableFuture<T> future) {
-    return new LambdaSubscriber<>(
+  private static <T> Subscriber<T> completerFirst(final CompletableFuture<T> future) {
+    return lambdaSubscriber(
         future::complete, () -> future.complete(null), future::completeExceptionally);
   }
 
-  private static <T> LambdaSubscriber<T> completerList(
+  private static <T> Subscriber<T> completerList(
       final CompletableFuture<List<T>> future, final int initialCapacity) {
     final List<T> result = new ArrayList<>(initialCapacity);
 
-    return new LambdaSubscriber<>(
+    return lambdaSubscriber(
         result::add, () -> future.complete(result), future::completeExceptionally);
   }
 
@@ -672,7 +683,7 @@ public class Util {
     final Processor<T, T> pass1 = passThrough();
     final Processor<T, T> pass2 = passThrough();
 
-    pass1.subscribe(Fanout.of(pass2, subscriber));
+    pass1.subscribe(Fanout.of(list(pass2, subscriber), list(true, false)));
 
     return combine(pass1, pass2);
   }

@@ -33,7 +33,19 @@ public class Fanout<T> implements Subscriber<T> {
   /**
    * Creates a fanout subscriber.
    *
-   * @param subscribers the subscribers that all receive the values.
+   * @param subscribers the subscribers that all receive the values. The upstream will be cancelled
+   *     only when all the subscriptions have been cancelled.
+   * @since 3.4
+   */
+  public Fanout(final List<? extends Subscriber<T>> subscribers) {
+    this(subscribers, (UnaryOperator<T>) null);
+  }
+
+  /**
+   * Creates a fanout subscriber.
+   *
+   * @param subscribers the subscribers that all receive the values. The upstream will be cancelled
+   *     only when all the subscriptions have been cancelled.
    * @param duplicator a function that duplicates the value for all subscribers but the first. This
    *     way there are as many copies of the value as there are subscribers. It may be <code>null
    *     </code>.
@@ -41,7 +53,7 @@ public class Fanout<T> implements Subscriber<T> {
    */
   public Fanout(
       final List<? extends Subscriber<T>> subscribers, final UnaryOperator<T> duplicator) {
-    this.subscriptions = subscribers.stream().map(Backpressure::new).collect(toList());
+    this.subscriptions = subscribers.stream().map(s -> new Backpressure(s, true)).collect(toList());
     this.duplicator = duplicator;
   }
 
@@ -49,17 +61,59 @@ public class Fanout<T> implements Subscriber<T> {
    * Creates a fanout subscriber.
    *
    * @param subscribers the subscribers that all receive the values.
-   * @param <T> the value type.
-   * @return The new subscriber.
+   * @param takeIntoAccountCancel indicates for each subscriber whether the cancellation of their
+   *     subscription should be taken into account to cancel the upstream or not.
+   * @since 3.4
    */
-  public static <T> Subscriber<T> of(final List<? extends Subscriber<T>> subscribers) {
-    return new Fanout<>(subscribers, null);
+  public Fanout(
+      final List<? extends Subscriber<T>> subscribers, final List<Boolean> takeIntoAccountCancel) {
+    this(subscribers, takeIntoAccountCancel, null);
   }
 
   /**
    * Creates a fanout subscriber.
    *
    * @param subscribers the subscribers that all receive the values.
+   * @param takeIntoAccountCancel indicates for each subscriber whether the cancellation of their
+   *     subscription should be taken into account to cancel the upstream or not.
+   * @param duplicator a function that duplicates the value for all subscribers but the first. This
+   *     way there are as many copies of the value as there are subscribers. It may be <code>null
+   *     </code>.
+   * @since 3.4
+   */
+  public Fanout(
+      final List<? extends Subscriber<T>> subscribers,
+      final List<Boolean> takeIntoAccountCancel,
+      final UnaryOperator<T> duplicator) {
+    if (subscribers.size() != takeIntoAccountCancel.size()) {
+      throw new IllegalArgumentException(
+          "The size of subscribers and takeIntoAccountCancel should be the same.");
+    }
+
+    this.subscriptions =
+        zip(subscribers.stream(), takeIntoAccountCancel.stream())
+            .map(pair -> new Backpressure(pair.first, pair.second))
+            .collect(toList());
+    this.duplicator = duplicator;
+  }
+
+  /**
+   * Creates a fanout subscriber.
+   *
+   * @param subscribers the subscribers that all receive the values. The upstream will be cancelled
+   *     only when all the subscriptions have been cancelled.
+   * @param <T> the value type.
+   * @return The new subscriber.
+   */
+  public static <T> Subscriber<T> of(final List<? extends Subscriber<T>> subscribers) {
+    return new Fanout<>(subscribers);
+  }
+
+  /**
+   * Creates a fanout subscriber.
+   *
+   * @param subscribers the subscribers that all receive the values. The upstream will be cancelled
+   *     only when all the subscriptions have been cancelled.
    * @param duplicator a function that duplicates the value for all subscribers but the first. This
    *     way there are as many copies of the value as there are subscribers. It may be <code>null
    *     </code>.
@@ -75,13 +129,51 @@ public class Fanout<T> implements Subscriber<T> {
   /**
    * Creates a fanout subscriber.
    *
-   * @param subscribers the subscribers that all receive the values.
+   * @param subscribers the subscribers that all receive the values. The upstream will be cancelled
+   *     only when all the subscriptions have been cancelled.
+   * @param takeIntoAccountCancel indicates for each subscriber whether the cancellation of their
+   *     subscription should be taken into account to cancel the upstream or not.
+   * @param <T> the value type.
+   * @return The new subscriber.
+   * @since 3.4
+   */
+  public static <T> Subscriber<T> of(
+      final List<? extends Subscriber<T>> subscribers, final List<Boolean> takeIntoAccountCancel) {
+    return new Fanout<>(subscribers, takeIntoAccountCancel, null);
+  }
+
+  /**
+   * Creates a fanout subscriber.
+   *
+   * @param subscribers the subscribers that all receive the values. The upstream will be cancelled
+   *     only when all the subscriptions have been cancelled.
+   * @param takeIntoAccountCancel indicates for each subscriber whether the cancellation of their
+   *     subscription should be taken into account to cancel the upstream or not.
+   * @param duplicator a function that duplicates the value for all subscribers but the first. This
+   *     way there are as many copies of the value as there are subscribers. It may be <code>null
+   *     </code>.
+   * @param <T> the value type.
+   * @return The new subscriber.
+   * @since 3.4
+   */
+  public static <T> Subscriber<T> of(
+      final List<? extends Subscriber<T>> subscribers,
+      final List<Boolean> takeIntoAccountCancel,
+      final UnaryOperator<T> duplicator) {
+    return new Fanout<>(subscribers, takeIntoAccountCancel, duplicator);
+  }
+
+  /**
+   * Creates a fanout subscriber.
+   *
+   * @param subscribers the subscribers that all receive the values. The upstream will be cancelled
+   *     only when all the subscriptions have been cancelled.
    * @param <T> the value type.
    * @return The new subscriber.
    */
   @SafeVarargs
   public static <T> Subscriber<T> of(final Subscriber<T>... subscribers) {
-    return new Fanout<>(asList(subscribers), null);
+    return new Fanout<>(asList(subscribers));
   }
 
   private void dispatch(final Runnable action) {
@@ -133,16 +225,18 @@ public class Fanout<T> implements Subscriber<T> {
 
   private class Backpressure implements Subscription {
     private final Subscriber<T> subscriber;
+    private final boolean takeIntoAccountCancel;
     private boolean cancelled;
     private long commonRequested;
     private long requested;
 
-    private Backpressure(final Subscriber<T> subscriber) {
+    private Backpressure(final Subscriber<T> subscriber, final boolean takeIntoAccountCancel) {
       this.subscriber = subscriber;
+      this.takeIntoAccountCancel = takeIntoAccountCancel;
     }
 
     private boolean allCancelled() {
-      return subscriptions.stream().allMatch(s -> s.cancelled);
+      return subscriptions.stream().filter(s -> s.takeIntoAccountCancel).allMatch(s -> s.cancelled);
     }
 
     public void cancel() {
