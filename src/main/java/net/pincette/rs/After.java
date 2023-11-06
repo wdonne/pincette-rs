@@ -1,5 +1,7 @@
 package net.pincette.rs;
 
+import static net.pincette.util.Collections.list;
+
 import java.util.concurrent.Flow.Processor;
 import java.util.function.Supplier;
 
@@ -7,19 +9,18 @@ import java.util.function.Supplier;
  * A processor which emits a given value after all incoming values have been emitted.
  *
  * @param <T> the value type.
- * @author Werner Donn\u00e9
+ * @author Werner Donné
  * @since 1.0
  */
-public class After<T> extends Mapper<T, T> {
+public class After<T> extends Buffered<T, T> {
   private final Supplier<T> value;
-  private boolean completed;
 
   public After(final T value) {
     this(() -> value);
   }
 
   public After(final Supplier<T> value) {
-    super(v -> v);
+    super(1);
     this.value = value;
   }
 
@@ -32,16 +33,16 @@ public class After<T> extends Mapper<T, T> {
   }
 
   @Override
-  protected boolean canRequestMore(long n) {
-    return !completed;
+  public void last() {
+    addValues(list(value.get()));
+    emit();
   }
 
   @Override
-  public void onComplete() {
-    if (!completed) {
-      completed = true;
-      super.onNext(value.get());
-      super.onComplete();
-    }
+  protected boolean onNextAction(final T value) {
+    addValues(list(value));
+    emit();
+
+    return true;
   }
 }

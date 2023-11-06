@@ -1,5 +1,7 @@
 package net.pincette.rs;
 
+import java.util.ArrayList;
+import java.util.List;
 import java.util.concurrent.Flow.Processor;
 import java.util.function.Supplier;
 
@@ -7,12 +9,11 @@ import java.util.function.Supplier;
  * A processor which emits a given value before all incoming values have been emitted.
  *
  * @param <T> the value type.
- * @author Werner Donn\u00e9
+ * @author Werner Donné
  * @since 1.0
  */
-public class Before<T> extends Mapper<T, T> {
+public class Before<T> extends Buffered<T, T> {
   private final Supplier<T> value;
-  private boolean extra;
   private boolean first = true;
 
   public Before(final T value) {
@@ -20,7 +21,7 @@ public class Before<T> extends Mapper<T, T> {
   }
 
   public Before(final Supplier<T> value) {
-    super(v -> v);
+    super(1);
     this.value = value;
   }
 
@@ -33,33 +34,18 @@ public class Before<T> extends Mapper<T, T> {
   }
 
   @Override
-  protected boolean canRequestMore(long n) {
-    if (extra) {
-      extra = false;
+  protected boolean onNextAction(final T value) {
+    final List<T> values = new ArrayList<>();
 
-      return false;
-    }
-
-    return true;
-  }
-
-  @Override
-  public void onComplete() {
-    if (first) {
-      super.onNext(value.get());
-    }
-
-    super.onComplete();
-  }
-
-  @Override
-  public void onNext(final T value) {
     if (first) {
       first = false;
-      extra = true;
-      super.onNext(this.value.get());
+      values.add(this.value.get());
     }
 
-    super.onNext(value);
+    values.add(value);
+    addValues(values);
+    emit();
+
+    return true;
   }
 }
