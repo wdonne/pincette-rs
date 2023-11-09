@@ -102,6 +102,18 @@ class TestChain {
   }
 
   @Test
+  @DisplayName("chain after before empty 1")
+  void afterBeforeEmpty1() {
+    runTest(list(1, -1), () -> with(of(list())).before(1).after(-1).get());
+  }
+
+  @Test
+  @DisplayName("chain after before empty 2")
+  void afterBeforeEmpty2() {
+    runTest(list(1, -1), () -> with(of(list())).after(-1).before(1).get());
+  }
+
+  @Test
   @DisplayName("chain before")
   void before() {
     runTest(list(-1, 1), () -> with(of(list(1))).before(-1).get());

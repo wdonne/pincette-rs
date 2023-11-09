@@ -85,7 +85,7 @@ public abstract class Buffered<T, R> extends ProcessorBase<T, R> {
   }
 
   private boolean done() {
-    return completed && (received == 0 || buf.isEmpty());
+    return completed && buf.isEmpty();
   }
 
   private void doLast() {

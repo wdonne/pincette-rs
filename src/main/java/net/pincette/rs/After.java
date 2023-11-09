@@ -35,7 +35,6 @@ public class After<T> extends Buffered<T, T> {
   @Override
   public void last() {
     addValues(list(value.get()));
-    emit();
   }
 
   @Override

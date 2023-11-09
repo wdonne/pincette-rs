@@ -1,5 +1,7 @@
 package net.pincette.rs;
 
+import static net.pincette.util.Collections.list;
+
 import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.Flow.Processor;
@@ -31,6 +33,13 @@ public class Before<T> extends Buffered<T, T> {
 
   public static <T> Processor<T, T> before(final Supplier<T> value) {
     return new Before<>(value);
+  }
+
+  @Override
+  public void last() {
+    if (first) {
+      addValues(list(value.get()));
+    }
   }
 
   @Override
