@@ -4,7 +4,6 @@ import static java.time.Duration.ofNanos;
 import static java.util.Arrays.asList;
 import static java.util.Arrays.fill;
 import static java.util.logging.Logger.getLogger;
-import static java.util.stream.Collectors.toList;
 import static net.pincette.rs.Buffer.buffer;
 import static net.pincette.rs.Util.throwBackpressureViolation;
 import static net.pincette.rs.Util.trace;
@@ -39,7 +38,7 @@ public class Merge<T> implements Publisher<T> {
    * @param publishers the publishers of which all events are forwarded.
    */
   public Merge(final List<? extends Publisher<T>> publishers) {
-    branchSubscribers = publishers.stream().map(this::branchSubscriber).collect(toList());
+    branchSubscribers = publishers.stream().map(this::branchSubscriber).toList();
   }
 
   /**
@@ -165,7 +164,7 @@ public class Merge<T> implements Publisher<T> {
     }
 
     private List<BranchSubscriber> selectSubscribers(final Predicate<BranchSubscriber> filter) {
-      return branchSubscribers.stream().filter(filter).sorted(schedule()).collect(toList());
+      return branchSubscribers.stream().filter(filter).sorted(schedule()).toList();
     }
 
     private long[] spreadRequests(final long n, final int numberSubscribers) {

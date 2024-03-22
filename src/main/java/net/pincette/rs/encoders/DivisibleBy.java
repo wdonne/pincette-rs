@@ -1,7 +1,6 @@
 package net.pincette.rs.encoders;
 
 import static java.lang.Math.min;
-import static java.util.stream.Collectors.toList;
 import static net.pincette.util.StreamUtil.generate;
 
 import java.nio.ByteBuffer;
@@ -34,7 +33,7 @@ public class DivisibleBy implements Encoder<ByteBuffer, ByteBuffer> {
   }
 
   private List<ByteBuffer> consumeBuffers(final boolean completed) {
-    return generate(() -> nextBuffer(completed)).collect(toList());
+    return generate(() -> nextBuffer(completed)).toList();
   }
 
   private Optional<Integer> count() {

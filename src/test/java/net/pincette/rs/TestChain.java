@@ -114,6 +114,24 @@ class TestChain {
   }
 
   @Test
+  @DisplayName("chain after before many 1")
+  void afterBeforeMany1() {
+    runTest(list(1, 2, 3, -1), () -> with(of(list(2, 3))).beforeIfMany(1).afterIfMany(-1).get());
+  }
+
+  @Test
+  @DisplayName("chain after before many 2")
+  void afterBeforeMany2() {
+    runTest(list(2), () -> with(of(list(2))).beforeIfMany(1).afterIfMany(-1).get());
+  }
+
+  @Test
+  @DisplayName("chain after before many 3")
+  void afterBeforeMany3() {
+    runTest(list(), () -> with(of(list())).beforeIfMany(1).afterIfMany(-1).get());
+  }
+
+  @Test
   @DisplayName("chain before")
   void before() {
     runTest(list(-1, 1), () -> with(of(list(1))).before(-1).get());

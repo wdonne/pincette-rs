@@ -2,7 +2,6 @@ package net.pincette.rs;
 
 import static java.time.Duration.ofNanos;
 import static java.util.Optional.ofNullable;
-import static java.util.stream.Collectors.toList;
 import static net.pincette.util.ScheduledCompletionStage.runAsyncAfter;
 import static net.pincette.util.StreamUtil.generate;
 
@@ -104,7 +103,7 @@ public class Per<T> extends Buffered<T, List<T>> {
   }
 
   private List<List<T>> getSlices(final boolean flush) {
-    return generate(() -> ofNullable(getSlice(flush))).collect(toList());
+    return generate(() -> ofNullable(getSlice(flush))).toList();
   }
 
   @Override

@@ -6,7 +6,6 @@ import static java.util.concurrent.CompletableFuture.completedFuture;
 import static java.util.concurrent.locks.LockSupport.park;
 import static java.util.concurrent.locks.LockSupport.parkNanos;
 import static java.util.logging.Logger.getLogger;
-import static java.util.stream.Collectors.toList;
 import static net.pincette.rs.Box.box;
 import static net.pincette.rs.Buffer.buffer;
 import static net.pincette.rs.Chain.with;
@@ -62,7 +61,7 @@ import net.pincette.util.Util.GeneralException;
 /**
  * Some utilities.
  *
- * @author Werner Donn\u00e9
+ * @author Werner Donné
  * @since 1.0
  */
 public class Util {
@@ -200,9 +199,7 @@ public class Util {
   }
 
   static <T> List<T> consume(final Deque<T> deque, final long requested) {
-    return rangeExclusive(0, min(deque.size(), requested))
-        .map(i -> deque.pollLast())
-        .collect(toList());
+    return rangeExclusive(0, min(deque.size(), requested)).map(i -> deque.pollLast()).toList();
   }
 
   /**
@@ -730,30 +727,46 @@ public class Util {
 
     @Override
     protected void more(final long number) {
-      requested += number;
-      super.more(number);
+      dispatch(
+          () -> {
+            requested += number;
+            super.more(number);
+          });
+    }
+
+    @Override
+    public void onComplete() {
+      dispatch(super::onComplete);
     }
 
     @Override
     public void onError(Throwable t) {
-      setError(true);
+      dispatch(
+          () -> {
+            setError(true);
 
-      if (onException != null) {
-        onException.accept(t);
-      }
+            if (onException != null) {
+              onException.accept(t);
+            }
 
-      composeAsyncAfter(() -> completedFuture(publisher.get()), retryInterval)
-          .thenAccept(
-              p -> {
-                setError(false);
-                p.subscribe(this);
-              });
+            composeAsyncAfter(() -> completedFuture(publisher.get()), retryInterval)
+                .thenAccept(
+                    p ->
+                        dispatch(
+                            () -> {
+                              setError(false);
+                              p.subscribe(this);
+                            }));
+          });
     }
 
     @Override
     public void onNext(final T value) {
-      --requested;
-      super.onNext(value);
+      dispatch(
+          () -> {
+            --requested;
+            super.onNext(value);
+          });
     }
 
     @Override

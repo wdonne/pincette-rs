@@ -49,16 +49,6 @@ public class Chain<T> {
   }
 
   /**
-   * Asks the upstream for more elements if it hasn't received any before the timeout, until the
-   * stream completes.
-   *
-   * @since 3.0
-   */
-  public Chain<T> askForever(final Duration timeout) {
-    return map(AskForever.askForever(timeout));
-  }
-
-  /**
    * Appends the result of <code>value</code> to the stream.
    *
    * @param value the function that produces the value to emit. It may not be <code>null</code>.
@@ -67,6 +57,39 @@ public class Chain<T> {
    */
   public Chain<T> after(final Supplier<T> value) {
     return map(After.after(value));
+  }
+
+  /**
+   * Appends <code>value</code> to the stream, only if the stream has more than one value.
+   *
+   * @param value the value to emit. It may be <code>null</code>.
+   * @return the new stream.
+   * @since 3.5
+   */
+  public Chain<T> afterIfMany(final T value) {
+    return map(AfterIfMany.afterIfMany(value));
+  }
+
+  /**
+   * Appends the result of <code>value</code> to the stream, only if the stream has more than one
+   * value.
+   *
+   * @param value the function that produces the value to emit. It may not be <code>null</code>.
+   * @return the new stream.
+   * @since 3.5
+   */
+  public Chain<T> afterIfMany(final Supplier<T> value) {
+    return map(AfterIfMany.afterIfMany(value));
+  }
+
+  /**
+   * Asks the upstream for more elements if it hasn't received any before the timeout, until the
+   * stream completes.
+   *
+   * @since 3.0
+   */
+  public Chain<T> askForever(final Duration timeout) {
+    return map(AskForever.askForever(timeout));
   }
 
   /**
@@ -89,6 +112,29 @@ public class Chain<T> {
    */
   public Chain<T> before(final Supplier<T> value) {
     return map(Before.before(value));
+  }
+
+  /**
+   * Puts <code>value</code> before the stream, only if the stream has more than one value.
+   *
+   * @param value the value to emit. It may be <code>null</code>.
+   * @return the new stream.
+   * @since 3.5
+   */
+  public Chain<T> beforeIfMany(final T value) {
+    return map(BeforeIfMany.beforeIfMany(value));
+  }
+
+  /**
+   * Puts the result of <code>value</code> before the stream, only if the stream has more than one
+   * value.
+   *
+   * @param value the function that produces the value to emit. It may not be <code>null</code>.
+   * @return the new stream.
+   * @since 3.5
+   */
+  public Chain<T> beforeIfMany(final Supplier<T> value) {
+    return map(BeforeIfMany.beforeIfMany(value));
   }
 
   /**

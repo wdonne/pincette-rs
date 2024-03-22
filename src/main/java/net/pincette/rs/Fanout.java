@@ -1,7 +1,6 @@
 package net.pincette.rs;
 
 import static java.util.Arrays.asList;
-import static java.util.stream.Collectors.toList;
 import static java.util.stream.Stream.concat;
 import static java.util.stream.Stream.empty;
 import static net.pincette.rs.Util.throwBackpressureViolation;
@@ -18,8 +17,8 @@ import java.util.function.UnaryOperator;
 import java.util.stream.Stream;
 
 /**
- * A subscriber that accepts multiple subscribers to all of which it passes all events. The pace is
- * defined by the slowest subscriber.
+ * A subscriber that accepts multiple subscribers to all of which it passes all events, in the order
+ * of the given subscribers. The pace is defined by the slowest subscriber.
  *
  * @param <T> the value type.
  * @author Werner Donné
@@ -53,7 +52,7 @@ public class Fanout<T> implements Subscriber<T> {
    */
   public Fanout(
       final List<? extends Subscriber<T>> subscribers, final UnaryOperator<T> duplicator) {
-    this.subscriptions = subscribers.stream().map(s -> new Backpressure(s, true)).collect(toList());
+    this.subscriptions = subscribers.stream().map(s -> new Backpressure(s, true)).toList();
     this.duplicator = duplicator;
   }
 
@@ -93,7 +92,7 @@ public class Fanout<T> implements Subscriber<T> {
     this.subscriptions =
         zip(subscribers.stream(), takeIntoAccountCancel.stream())
             .map(pair -> new Backpressure(pair.first, pair.second))
-            .collect(toList());
+            .toList();
     this.duplicator = duplicator;
   }
 

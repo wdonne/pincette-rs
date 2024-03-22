@@ -33,6 +33,7 @@ public abstract class Buffered<T, R> extends ProcessorBase<T, R> {
   private long received;
   private long requested;
   private long requestedUpstream;
+  private boolean started;
 
   /**
    * Create a buffered processor. The timeout is set to 0.
@@ -85,7 +86,7 @@ public abstract class Buffered<T, R> extends ProcessorBase<T, R> {
   }
 
   private boolean done() {
-    return completed && buf.isEmpty();
+    return completed && buf.isEmpty() && started;
   }
 
   private void doLast() {
@@ -102,6 +103,7 @@ public abstract class Buffered<T, R> extends ProcessorBase<T, R> {
     dispatch(
         () -> {
           trace(logger, () -> "emit number: " + number);
+          started = true;
           requested += number;
           more();
           emit();
@@ -121,13 +123,22 @@ public abstract class Buffered<T, R> extends ProcessorBase<T, R> {
             trace(logger, () -> "emit requested: " + getRequested());
 
             Util.nextValues(buf, getRequested())
-                .ifPresent(
+                .ifPresentOrElse(
                     values -> {
                       requested -= values.size();
                       sendValues(values);
+                    },
+                    () -> {
+                      if (done()) {
+                        sendComplete();
+                      }
                     });
 
             more();
+          } else {
+            if (done()) {
+              sendComplete();
+            }
           }
         });
   }

@@ -47,6 +47,6 @@ public class Separator<T> extends Buffered<T, T> {
     addValues(values);
     emit();
 
-    return false;
+    return true;
   }
 }
