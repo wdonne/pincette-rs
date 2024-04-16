@@ -1,8 +1,7 @@
 package net.pincette.rs;
 
 import static java.util.Arrays.asList;
-import static net.pincette.rs.Util.empty;
-import static net.pincette.rs.Util.throwBackpressureViolation;
+import static net.pincette.rs.Chain.with;
 
 import java.util.List;
 import java.util.concurrent.Flow.Publisher;
@@ -17,7 +16,6 @@ import java.util.concurrent.Flow.Subscriber;
  * @since 3.0
  */
 public class Concat<T> implements Publisher<T> {
-  private final Chainer chainer = new Chainer();
   private final List<Publisher<T>> publishers;
 
   public Concat(final List<Publisher<T>> publishers) {
@@ -35,65 +33,7 @@ public class Concat<T> implements Publisher<T> {
 
   @Override
   public void subscribe(final Subscriber<? super T> subscriber) {
-    if (publishers.isEmpty()) {
-      final Publisher<T> empty = empty();
-
-      empty.subscribe(subscriber);
-    } else {
-      publishers.get(0).subscribe(chainer);
-      chainer.subscribe(subscriber);
-    }
-  }
-
-  private class Chainer extends ProcessorBase<T, T> {
-    private int position;
-    private long requested;
-
-    @Override
-    public void cancel() {
-      // Don't cancel when a new subscription is taken, because then this dynamic subscription
-      // switching is no longer transparent for the publishers.
-    }
-
-    @Override
-    protected void emit(final long number) {
-      dispatch(
-          () -> {
-            requested += number;
-            more();
-          });
-    }
-
-    private void more() {
-      if (requested > 0) {
-        subscription.request(1);
-      }
-    }
-
-    @Override
-    public void onComplete() {
-      dispatch(
-          () -> {
-            if (position < publishers.size() - 1) {
-              publishers.get(++position).subscribe(this);
-              more();
-            } else {
-              super.onComplete();
-            }
-          });
-    }
-
-    @Override
-    public void onNext(final T item) {
-      dispatch(
-          () -> {
-            if (requested == 0) {
-              throwBackpressureViolation(this, subscription, requested);
-            }
-
-            --requested;
-            subscriber.onNext(item);
-          });
-    }
+    (publishers.isEmpty() ? Util.<T>empty() : with(Source.of(publishers)).flatMap(p -> p).get())
+        .subscribe(subscriber);
   }
 }

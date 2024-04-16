@@ -2,7 +2,6 @@ package net.pincette.rs;
 
 import static java.nio.channels.FileChannel.open;
 import static java.nio.file.StandardOpenOption.READ;
-import static java.util.stream.Collectors.toList;
 import static net.pincette.rs.Chain.with;
 import static net.pincette.rs.LambdaSubscriber.lambdaSubscriber;
 import static net.pincette.rs.ReadableByteChannelPublisher.readableByteChannel;
@@ -20,8 +19,8 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
 class TestLines {
-  private static void run(final int bufferSize) {
-    final File in = copyResource("/lines.txt");
+  private static void run(final int bufferSize, final String resource) {
+    final File in = copyResource("/" + resource);
 
     if (in != null) {
       try {
@@ -35,8 +34,7 @@ class TestLines {
                 lambdaSubscriber(
                     lines::add,
                     () -> {
-                      assertEquals(
-                          lines, new BufferedReader(new FileReader(in)).lines().collect(toList()));
+                      assertEquals(lines, new BufferedReader(new FileReader(in)).lines().toList());
                       future.complete(null);
                     }));
 
@@ -52,18 +50,36 @@ class TestLines {
   @Test
   @DisplayName("lines1")
   void lines1() {
-    run(0xffff);
+    run(0xffff, "lines.txt");
   }
 
   @Test
   @DisplayName("lines2")
   void lines2() {
-    run(10);
+    run(10, "lines.txt");
   }
 
   @Test
   @DisplayName("lines3")
   void lines3() {
-    run(2);
+    run(2, "lines.txt");
+  }
+
+  @Test
+  @DisplayName("lines4")
+  void lines4() {
+    run(0xffff, "large.csv");
+  }
+
+  @Test
+  @DisplayName("lines5")
+  void lines5() {
+    run(10, "large.csv");
+  }
+
+  @Test
+  @DisplayName("lines6")
+  void lines6() {
+    run(2, "large.csv");
   }
 }

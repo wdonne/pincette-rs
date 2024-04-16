@@ -1,6 +1,5 @@
 package net.pincette.rs;
 
-import static java.time.Duration.ofNanos;
 import static java.util.logging.Logger.getLogger;
 import static net.pincette.rs.Util.throwBackpressureViolation;
 import static net.pincette.rs.Util.trace;
@@ -41,7 +40,7 @@ public abstract class Buffered<T, R> extends ProcessorBase<T, R> {
    * @param requestSize the number of elements that will be requested from the upstream.
    */
   protected Buffered(final int requestSize) {
-    this(requestSize, ofNanos(0));
+    this(requestSize, null);
   }
 
   /**
@@ -206,6 +205,7 @@ public abstract class Buffered<T, R> extends ProcessorBase<T, R> {
   private void more(final long size) {
     requestedUpstream += size;
     trace(logger, () -> "more requestedUpstream: " + requestedUpstream);
+    trace(logger, () -> "more received: " + received);
     trace(logger, () -> "more subscription request: " + size);
     subscription.request(size);
   }
@@ -214,7 +214,8 @@ public abstract class Buffered<T, R> extends ProcessorBase<T, R> {
     return !isCompleted()
         && !isCancelled()
         && received == requestedUpstream
-        && getRequested() > buf.size();
+        && buf.isEmpty()
+        && getRequested() > 0;
   }
 
   @Override

@@ -1,5 +1,6 @@
 package net.pincette.rs;
 
+import static java.time.Duration.ofNanos;
 import static java.util.concurrent.CompletableFuture.completedFuture;
 import static java.util.concurrent.CompletableFuture.supplyAsync;
 import static net.pincette.rs.Box.box;
@@ -276,7 +277,7 @@ class TestChain {
                   committed.addAll(l);
                   return completedFuture(true);
                 })
-            .buffer(bufferSize)
+            .buffer(bufferSize, ofNanos(0)) // Keep it going if the buffer is larger than the data.
             .get());
 
     assertEquals(data, committed);
