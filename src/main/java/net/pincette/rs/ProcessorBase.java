@@ -15,6 +15,7 @@ import java.util.concurrent.Flow.Subscription;
 public abstract class ProcessorBase<T, R> implements Processor<T, R> {
   protected Subscriber<? super R> subscriber;
   protected Subscription subscription;
+  private boolean completed;
   private boolean error;
   private Throwable pendingException;
 
@@ -59,8 +60,12 @@ public abstract class ProcessorBase<T, R> implements Processor<T, R> {
   }
 
   public void onComplete() {
-    if (!getError() && subscriber != null) {
-      subscriber.onComplete();
+    if (!getError()) {
+      if (subscriber != null) {
+        subscriber.onComplete();
+      } else {
+        completed = true;
+      }
     }
   }
 
@@ -116,7 +121,11 @@ public abstract class ProcessorBase<T, R> implements Processor<T, R> {
       }
 
       if (!getError()) {
-        emit(number);
+        if (completed) {
+          onComplete();
+        } else {
+          emit(number);
+        }
       }
     }
   }
