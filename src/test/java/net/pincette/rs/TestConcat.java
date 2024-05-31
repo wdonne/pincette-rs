@@ -1,7 +1,6 @@
 package net.pincette.rs;
 
 import static java.util.concurrent.CompletableFuture.supplyAsync;
-import static java.util.stream.Collectors.toList;
 import static net.pincette.rs.Chain.with;
 import static net.pincette.rs.TestUtil.runTest;
 import static net.pincette.rs.TestUtil.values;
@@ -53,7 +52,7 @@ class TestConcat {
                             .map(s -> with(s).mapAsync(i -> supplyAsync(() -> i)).get()),
                         10)
                     .map(Concat::of)
-                    .collect(toList())),
+                    .toList()),
         1);
   }
 }

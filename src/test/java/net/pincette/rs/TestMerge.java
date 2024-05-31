@@ -1,7 +1,6 @@
 package net.pincette.rs;
 
 import static java.util.concurrent.CompletableFuture.supplyAsync;
-import static java.util.stream.Collectors.toList;
 import static net.pincette.rs.Async.mapAsync;
 import static net.pincette.rs.Box.box;
 import static net.pincette.rs.FlattenList.flattenList;
@@ -44,7 +43,7 @@ class TestMerge {
   }
 
   private static <T> List<T> sort(final List<T> list) {
-    return list.stream().sorted().collect(toList());
+    return list.stream().sorted().toList();
   }
 
   private static void test(final BinaryOperator<Publisher<Integer>> merge) {

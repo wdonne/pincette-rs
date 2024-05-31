@@ -1,7 +1,6 @@
 package net.pincette.rs;
 
 import static java.time.Duration.ofMillis;
-import static java.time.Duration.ofSeconds;
 import static net.pincette.rs.Chain.with;
 import static net.pincette.rs.Source.of;
 import static net.pincette.rs.TestUtil.runTest;

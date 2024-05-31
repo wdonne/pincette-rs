@@ -1,6 +1,5 @@
 package net.pincette.rs;
 
-import static java.util.stream.Collectors.toList;
 import static net.pincette.rs.TestUtil.runTest;
 import static net.pincette.rs.TestUtil.values;
 import static net.pincette.util.Collections.reverse;
@@ -38,7 +37,7 @@ class TestDequePublisher {
         () -> {
           final DequePublisher<Integer> publisher = new DequePublisher<>();
 
-          publisher.getDeque().addAll(stream(reverse(VALUES)).collect(toList()));
+          publisher.getDeque().addAll(stream(reverse(VALUES)).toList());
           publisher.close();
 
           return publisher;

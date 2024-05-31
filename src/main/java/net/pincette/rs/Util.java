@@ -1,11 +1,15 @@
 package net.pincette.rs;
 
 import static java.lang.Math.min;
+import static java.time.Duration.between;
+import static java.time.Instant.now;
+import static java.time.temporal.ChronoUnit.SECONDS;
 import static java.util.Collections.emptyList;
 import static java.util.concurrent.CompletableFuture.completedFuture;
 import static java.util.concurrent.locks.LockSupport.park;
 import static java.util.concurrent.locks.LockSupport.parkNanos;
 import static java.util.logging.Logger.getLogger;
+import static net.pincette.rs.Async.mapAsyncSequential;
 import static net.pincette.rs.Box.box;
 import static net.pincette.rs.Buffer.buffer;
 import static net.pincette.rs.Chain.with;
@@ -22,11 +26,13 @@ import static net.pincette.rs.Source.of;
 import static net.pincette.util.Collections.list;
 import static net.pincette.util.Pair.pair;
 import static net.pincette.util.ScheduledCompletionStage.composeAsyncAfter;
+import static net.pincette.util.ScheduledCompletionStage.supplyAsyncAfter;
 import static net.pincette.util.StreamUtil.rangeExclusive;
 import static net.pincette.util.Util.tryToDoRethrow;
 
 import java.nio.ByteBuffer;
 import java.time.Duration;
+import java.time.Instant;
 import java.util.ArrayDeque;
 import java.util.ArrayList;
 import java.util.Deque;
@@ -698,6 +704,12 @@ public class Util {
     return asValueAsync(with(Source.of(value)).map(processor).get());
   }
 
+  public static <T> Processor<T, T> throttle(final int maxPerSecond) {
+    final Running running = new Running(maxPerSecond);
+
+    return mapAsyncSequential(m -> running.update().thenApply(r -> m));
+  }
+
   static void throwBackpressureViolation(
       final Object victim, final Subscription subscription, final long requested) {
     throw new GeneralException(
@@ -780,6 +792,29 @@ public class Util {
           subscription.request(requested);
         }
       }
+    }
+  }
+
+  private static class Running {
+    private final int maxPerSecond;
+    private long count = 0;
+    private Instant second = now().truncatedTo(SECONDS);
+
+    private Running(final int maxPerSecond) {
+      this.maxPerSecond = maxPerSecond;
+    }
+
+    private CompletionStage<Boolean> update() {
+      final Instant now = now().truncatedTo(SECONDS);
+
+      if (between(second, now).toMillis() > 999) {
+        count = 0;
+        second = now;
+      }
+
+      return ++count >= maxPerSecond
+          ? supplyAsyncAfter(() -> true, between(now(), now.plusSeconds(1)))
+          : completedFuture(true);
     }
   }
 }

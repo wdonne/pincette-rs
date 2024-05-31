@@ -41,7 +41,7 @@ public class Chain<T> {
    * Appends <code>value</code> to the stream.
    *
    * @param value the value to emit. It may be <code>null</code>.
-   * @return the new stream.
+   * @return the new chain.
    * @since 1.0
    */
   public Chain<T> after(final T value) {
@@ -52,7 +52,7 @@ public class Chain<T> {
    * Appends the result of <code>value</code> to the stream.
    *
    * @param value the function that produces the value to emit. It may not be <code>null</code>.
-   * @return the new stream.
+   * @return the new chain.
    * @since 1.2.1
    */
   public Chain<T> after(final Supplier<T> value) {
@@ -63,7 +63,7 @@ public class Chain<T> {
    * Appends <code>value</code> to the stream, only if the stream has more than one value.
    *
    * @param value the value to emit. It may be <code>null</code>.
-   * @return the new stream.
+   * @return the new chain.
    * @since 3.5
    */
   public Chain<T> afterIfMany(final T value) {
@@ -75,7 +75,7 @@ public class Chain<T> {
    * value.
    *
    * @param value the function that produces the value to emit. It may not be <code>null</code>.
-   * @return the new stream.
+   * @return the new chain.
    * @since 3.5
    */
   public Chain<T> afterIfMany(final Supplier<T> value) {
@@ -86,6 +86,7 @@ public class Chain<T> {
    * Asks the upstream for more elements if it hasn't received any before the timeout, until the
    * stream completes.
    *
+   * @return The new chain.
    * @since 3.0
    */
   public Chain<T> askForever(final Duration timeout) {
@@ -96,7 +97,7 @@ public class Chain<T> {
    * Puts <code>value</code> before the stream.
    *
    * @param value the value to emit. It may be <code>null</code>.
-   * @return the new stream.
+   * @return the new chain.
    * @since 1.0
    */
   public Chain<T> before(final T value) {
@@ -107,7 +108,7 @@ public class Chain<T> {
    * Puts the result of <code>value</code> before the stream.
    *
    * @param value the function that produces the value to emit. It may not be <code>null</code>.
-   * @return the new stream.
+   * @return the new chain.
    * @since 1.2.1
    */
   public Chain<T> before(final Supplier<T> value) {
@@ -118,7 +119,7 @@ public class Chain<T> {
    * Puts <code>value</code> before the stream, only if the stream has more than one value.
    *
    * @param value the value to emit. It may be <code>null</code>.
-   * @return the new stream.
+   * @return the new chain.
    * @since 3.5
    */
   public Chain<T> beforeIfMany(final T value) {
@@ -130,7 +131,7 @@ public class Chain<T> {
    * value.
    *
    * @param value the function that produces the value to emit. It may not be <code>null</code>.
-   * @return the new stream.
+   * @return the new chain.
    * @since 3.5
    */
   public Chain<T> beforeIfMany(final Supplier<T> value) {
@@ -142,7 +143,7 @@ public class Chain<T> {
    * equals the buffer <code>size</code>. The timeout is set to 0.
    *
    * @param size the buffer size.
-   * @return the new stream.
+   * @return the new chain.
    * @since 1.7
    */
   public Chain<T> buffer(final int size) {
@@ -156,7 +157,7 @@ public class Chain<T> {
    * @param size the buffer size.
    * @param timeout the time after which the buffer requests a new value, even if it hasn't received
    *     enough elements yet.
-   * @return the new stream.
+   * @return the new chain.
    * @since 3.0.2
    */
   public Chain<T> buffer(final int size, final Duration timeout) {
@@ -167,7 +168,7 @@ public class Chain<T> {
    * Cancels the upstream if the condition is met.
    *
    * @param shouldCancel the predicate that checks if the upstream should be cancelled.
-   * @return the new stream.
+   * @return the new chain.
    * @since 3.2
    */
   public Chain<T> cancel(final Predicate<T> shouldCancel) {
@@ -362,7 +363,7 @@ public class Chain<T> {
    * requestTimeout</code> is set to 0.
    *
    * @param size the buffer size.
-   * @return the new stream.
+   * @return the new chain.
    * @since 2.0
    */
   public Chain<List<T>> per(final int size) {
@@ -376,7 +377,7 @@ public class Chain<T> {
    *
    * @param size the buffer size.
    * @param timeout the timeout after which the buffer is flushed. It should be positive.
-   * @return the new stream.
+   * @return the new chain.
    * @since 3.0.2
    */
   public Chain<List<T>> per(final int size, final Duration timeout) {
@@ -393,7 +394,7 @@ public class Chain<T> {
    *     upstream publisher hasn't sent all requested elements yet. This provides the opportunity to
    *     the publisher to complete properly when it has fewer elements left than the buffer size. It
    *     may be <code>null</code>.
-   * @return the new stream.
+   * @return the new chain.
    * @since 3.0.2
    */
   public Chain<List<T>> per(final int size, final Duration timeout, final Duration requestTimeout) {
@@ -404,7 +405,7 @@ public class Chain<T> {
    * Puts <code>value</code> between the emitted values.
    *
    * @param value the value to emit between the emitted values. It may be <code>null</code>.
-   * @return The new stream.
+   * @return The new chain.
    * @since 1.0
    */
   public Chain<T> separate(final T value) {
@@ -416,7 +417,7 @@ public class Chain<T> {
    *
    * @param value the function that produces the value to emit between the emitted values. It may
    *     not be <code>null</code>.
-   * @return The new stream.
+   * @return The new chain.
    * @since 1.2.1
    */
   public Chain<T> separate(final Supplier<T> value) {
@@ -427,10 +428,22 @@ public class Chain<T> {
    * When the upstream or downstream could cause races, this processor serializes everything with a
    * thread and a blocking queue.
    *
+   * @return The new chain.
    * @since 3.0
    */
   public Chain<T> split() {
     return map(Split.split());
+  }
+
+  /**
+   * Reduces throughput synthetically.
+   *
+   * @param maxPerSecond the maximum number of messages per second.
+   * @return The new chain.
+   * @since 3.6.0
+   */
+  public Chain<T> throttle(final int maxPerSecond) {
+    return map(Util.throttle(maxPerSecond));
   }
 
   /**
