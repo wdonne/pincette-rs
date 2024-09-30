@@ -1,6 +1,5 @@
 package net.pincette.rs;
 
-import static java.time.Duration.ofNanos;
 import static java.util.Optional.ofNullable;
 import static net.pincette.util.ScheduledCompletionStage.runAsyncAfter;
 import static net.pincette.util.StreamUtil.generate;
@@ -30,7 +29,8 @@ public class Per<T> extends Buffered<T, List<T>> {
   private boolean touched = true;
 
   /**
-   * Create a buffer of <code>size</code>. The <code>requestTimeout</code> is set to 0.
+   * Create a buffer of <code>size</code>. The <code>requestTimeout</code> is set to
+   * <code>null</code>.
    *
    * @param size the buffer size, which must be larger than zero.
    */
@@ -40,13 +40,13 @@ public class Per<T> extends Buffered<T, List<T>> {
 
   /**
    * Create a buffer of <code>size</code> with a timeout. The <code>requestTimeout</code> is set to
-   * 0.
+   * <code>null</code>.
    *
    * @param size the buffer size, which must be larger than zero.
    * @param timeout the timeout after which the buffer is flushed. It should be positive.
    */
   public Per(final int size, final Duration timeout) {
-    this(size, timeout, ofNanos(0));
+    this(size, timeout, null);
   }
 
   /**
