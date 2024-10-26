@@ -10,10 +10,11 @@ import java.util.function.Consumer;
  * requested or are emitted, which allows you to probe the backpressure mechanism.
  *
  * @param <T> the value type.
- * @author Werner Donn\u00e9
+ * @author Werner Donné
  * @since 3.0
  */
 public class Probe<T> extends ProcessorBase<T, T> {
+  private final Runnable cancel;
   private final Runnable complete;
   private final Consumer<Throwable> error;
   private final Consumer<Long> more;
@@ -36,10 +37,20 @@ public class Probe<T> extends ProcessorBase<T, T> {
       final Consumer<T> value,
       final Runnable complete,
       final Consumer<Throwable> error) {
+    this(more, value, complete, error, () -> {});
+  }
+
+  public Probe(
+      final Consumer<Long> more,
+      final Consumer<T> value,
+      final Runnable complete,
+      final Consumer<Throwable> error,
+      final Runnable cancel) {
     this.more = more;
     this.value = value;
     this.complete = complete;
     this.error = error;
+    this.cancel = cancel;
   }
 
   public Probe(final Runnable complete) {
@@ -67,8 +78,46 @@ public class Probe<T> extends ProcessorBase<T, T> {
     return new Probe<>(more, value, complete, error);
   }
 
+  public static <T> Processor<T, T> probe(
+      final Consumer<Long> more,
+      final Consumer<T> value,
+      final Runnable complete,
+      final Consumer<Throwable> error,
+      final Runnable cancel) {
+    return new Probe<>(more, value, complete, error, cancel);
+  }
+
   public static <T> Processor<T, T> probe(final Runnable complete) {
     return new Probe<>(complete);
+  }
+
+  public static <T> Processor<T, T> probeCancel(final Runnable cancel) {
+    return new Probe<>(n -> {}, v -> {}, () -> {}, t -> {}, cancel);
+  }
+
+  public static <T> Processor<T, T> probeComplete(final Runnable complete) {
+    return new Probe<>(complete);
+  }
+
+  public static <T> Processor<T, T> probeError(final Consumer<Throwable> error) {
+    return new Probe<>(n -> {}, v -> {}, () -> {}, error, () -> {});
+  }
+
+  public static <T> Processor<T, T> probeMore(final Consumer<Long> more) {
+    return new Probe<>(more);
+  }
+
+  public static <T> Processor<T, T> probeValue(final Consumer<T> value) {
+    return new Probe<>(n -> {}, value);
+  }
+
+  @Override
+  protected void cancelling() {
+    if (cancel != null) {
+      cancel.run();
+    }
+
+    super.cancelling();
   }
 
   @Override

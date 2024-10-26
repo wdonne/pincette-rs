@@ -1,6 +1,5 @@
 package net.pincette.rs;
 
-
 import java.util.ArrayList;
 import java.util.Deque;
 import java.util.List;
@@ -82,7 +81,9 @@ public class DequePublisher<T> implements Publisher<T> {
     if (subscriber != null && !completed) {
       final List<T> elements = consume();
 
-      dispatch(() -> elements.forEach(e -> subscriber.onNext(e)));
+      if (!elements.isEmpty()) {
+        dispatch(() -> elements.forEach(e -> subscriber.onNext(e)));
+      }
 
       if (closed && deque.isEmpty()) {
         complete();

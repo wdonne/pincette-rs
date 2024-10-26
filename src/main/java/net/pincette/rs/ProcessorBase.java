@@ -15,6 +15,7 @@ import java.util.concurrent.Flow.Subscription;
 public abstract class ProcessorBase<T, R> implements Processor<T, R> {
   protected Subscriber<? super R> subscriber;
   protected Subscription subscription;
+  private boolean cancelled;
   private boolean completed;
   private boolean error;
   private Throwable pendingException;
@@ -30,7 +31,13 @@ public abstract class ProcessorBase<T, R> implements Processor<T, R> {
    * thing.
    */
   protected void cancelling() {
-    dispatch(subscription::cancel);
+    dispatch(
+        () -> {
+          if (!cancelled) {
+            cancelled = true;
+            subscription.cancel();
+          }
+        });
   }
 
   /** Completes the downstream and cancels the upstream. */
@@ -120,7 +127,7 @@ public abstract class ProcessorBase<T, R> implements Processor<T, R> {
         throw new IllegalArgumentException("A request must be strictly positive.");
       }
 
-      if (!getError()) {
+      if (!getError() && !cancelled) {
         if (completed) {
           onComplete();
         } else {

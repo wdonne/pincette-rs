@@ -21,6 +21,8 @@ import static net.pincette.rs.NotFilter.notFilter;
 import static net.pincette.rs.PassThrough.passThrough;
 import static net.pincette.rs.Pipe.pipe;
 import static net.pincette.rs.Probe.probe;
+import static net.pincette.rs.Probe.probeCancel;
+import static net.pincette.rs.Probe.probeComplete;
 import static net.pincette.rs.Reducer.reduce;
 import static net.pincette.rs.Source.of;
 import static net.pincette.util.Collections.list;
@@ -492,7 +494,6 @@ public class Util {
    * Returns a processor that receives buffers and interprets the contents as a UTF-8 encoded
    * string. It emits the individual lines in the string without the line separators.
    *
-   * @author Werner Donn\u00e9
    * @since 3.0
    */
   public static Processor<ByteBuffer, String> lines() {
@@ -501,6 +502,19 @@ public class Util {
 
   static <T> Optional<List<T>> nextValues(final Deque<T> deque, final long amount) {
     return Optional.of(deque).filter(b -> !b.isEmpty() && amount > 0).map(b -> consume(b, amount));
+  }
+
+  /**
+   * Returns a processor that reacts to the cancellation of the subscription. It is transparent to
+   * all events.
+   *
+   * @param runnable the given function.
+   * @param <T> the value type.
+   * @return The processor.
+   * @since 3.6.2
+   */
+  public static <T> Processor<T, T> onCancelProcessor(final RunnableWithException runnable) {
+    return probeCancel(() -> tryToDoRethrow(runnable));
   }
 
   /**
@@ -525,7 +539,7 @@ public class Util {
    * @since 3.2.2
    */
   public static <T> Processor<T, T> onCompleteProcessor(final RunnableWithException runnable) {
-    return probe(n -> {}, v -> {}, () -> tryToDoRethrow(runnable));
+    return probeComplete(() -> tryToDoRethrow(runnable));
   }
 
   /**
