@@ -124,12 +124,6 @@ class TestUtil {
     }
   }
 
-  static <T> T trace(final T value) {
-    System.out.println(value);
-
-    return value;
-  }
-
   static List<Integer> values(final int from, final int toExclusive) {
     final List<Integer> result = new ArrayList<>(toExclusive - from);
 

@@ -1,10 +1,9 @@
 package net.pincette.rs;
 
+import static java.util.concurrent.CompletableFuture.completedFuture;
 import static net.pincette.rs.Box.box;
 import static net.pincette.rs.Mapper.map;
-import static net.pincette.rs.Util.initialStageDeque;
 
-import java.util.Deque;
 import java.util.concurrent.CompletionStage;
 import java.util.concurrent.Flow.Processor;
 import java.util.function.Function;
@@ -18,7 +17,7 @@ import java.util.function.Function;
  * @since 1.5
  */
 public class Async<T> extends ProcessorBase<CompletionStage<T>, T> {
-  private final Deque<CompletionStage<Void>> stages = initialStageDeque();
+  private CompletionStage<Void> previous = completedFuture(null);
 
   public static <T> Processor<CompletionStage<T>, T> async() {
     return new Async<>();
@@ -67,7 +66,7 @@ public class Async<T> extends ProcessorBase<CompletionStage<T>, T> {
     dispatch(
         () -> {
           if (!getError()) {
-            stages.getFirst().thenRunAsync(() -> subscriber.onComplete());
+            previous.thenRunAsync(() -> subscriber.onComplete());
           }
         });
   }
@@ -80,21 +79,17 @@ public class Async<T> extends ProcessorBase<CompletionStage<T>, T> {
     dispatch(
         () -> {
           if (!getError()) {
-            stages.addFirst(
-                stages
-                    .getFirst()
+            previous =
+                previous
                     .thenComposeAsync(v -> stage.thenAccept(value -> subscriber.onNext(value)))
                     .exceptionally(
                         t -> {
+                          setError(true);
                           subscriber.onError(t);
                           subscription.cancel();
 
                           return null;
-                        }));
-
-            while (stages.size() > 10) {
-              stages.removeLast();
-            }
+                        });
           }
         });
   }

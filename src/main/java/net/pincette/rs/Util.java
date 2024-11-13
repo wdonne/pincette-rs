@@ -46,6 +46,7 @@ import java.util.concurrent.Flow.Processor;
 import java.util.concurrent.Flow.Publisher;
 import java.util.concurrent.Flow.Subscriber;
 import java.util.concurrent.Flow.Subscription;
+import java.util.function.BiFunction;
 import java.util.function.Consumer;
 import java.util.function.Function;
 import java.util.function.Supplier;
@@ -180,6 +181,35 @@ public class Util {
     publisher.subscribe(lambdaSubscriber(v -> {}, () -> {}, t -> {}, Subscription::cancel));
   }
 
+  /**
+   * With this function you can hold on to a value before the messages goes through the wrapped
+   * processor because it won't be available anymore in the message that comes out of it.
+   *
+   * @param wrapped the processor over which a value is carried.
+   * @param split the function that calculates the value that is to be carried over the wrapped
+   *     processor.
+   * @param merge the function that receives the messages from the wrapped processor and the value
+   *     that is carried over. If the wrapped processor produces more than one message for an
+   *     incoming message, the function will be called for all those messages.
+   * @return The new processor.
+   * @param <T> the input type of the processor.
+   * @param <R> the output type of the processor.
+   * @param <S> the type of the value that is carried over.
+   * @since 3.7.0
+   */
+  public static <T, R, S> Processor<T, R> carryOver(
+      final Processor<T, R> wrapped, final Function<T, S> split, final BiFunction<R, S, R> merge) {
+    final State<S> value = new State<>(null);
+
+    return pipe(map(
+            (T v) -> {
+              value.set(split.apply(v));
+              return v;
+            }))
+        .then(wrapped)
+        .then(map(v -> merge.apply(v, value.get())));
+  }
+
   public static <T> Publisher<T> completablePublisher(
       final Supplier<CompletionStage<Publisher<T>>> publisher) {
     final Processor<T, T> passThrough = passThrough();
@@ -249,7 +279,6 @@ public class Util {
    * Returns a processor that produces byte buffers the size of which is divisible by a certain
    * number, where the last one may be smaller than that number.
    *
-   * @author Werner Donn\u00e9
    * @since 3.0
    */
   public static Processor<ByteBuffer, ByteBuffer> divisibleBy(final int n) {

@@ -96,6 +96,26 @@ class TestChain {
                 .get());
   }
 
+  private static void mapAsync(final int valueSize, final int bufferSize) {
+    final List<Integer> values = values(0, valueSize);
+
+    runTest(
+        values,
+        () -> with(of(values)).mapAsync(v -> supplyAsync(() -> v)).buffer(bufferSize).get());
+  }
+
+  private static void mapAsyncSequential(final int valueSize, final int bufferSize) {
+    final List<Integer> values = values(0, valueSize);
+
+    runTest(
+        values,
+        () ->
+            with(of(values))
+                .mapAsyncSequential(v -> supplyAsync(() -> v))
+                .buffer(bufferSize)
+                .get());
+  }
+
   @Test
   @DisplayName("chain after")
   void after() {
@@ -386,6 +406,14 @@ class TestChain {
   }
 
   @Test
+  @DisplayName("chain map")
+  void mapInt() {
+    final List<Integer> values = values(0, 1000);
+
+    runTest(values, () -> with(of(values)).map(v -> v).buffer(1000).get());
+  }
+
+  @Test
   @DisplayName("chain mapAsync 1")
   void mapAsync1() {
     runTest(
@@ -396,14 +424,24 @@ class TestChain {
   @Test
   @DisplayName("chain mapAsync 2")
   void mapAsync2() {
-    final List<Integer> values = values(0, 100);
-
-    runTest(values, () -> with(of(values)).mapAsync(v -> supplyAsync(() -> v)).buffer(1000).get());
+    mapAsync(100, 1000);
   }
 
   @Test
   @DisplayName("chain mapAsync 3")
   void mapAsync3() {
+    mapAsync(1000, 1);
+  }
+
+  @Test
+  @DisplayName("chain mapAsync 4")
+  void mapAsync4() {
+    mapAsync(1000, 10);
+  }
+
+  @Test
+  @DisplayName("chain mapAsync 5")
+  void mapAsync5() {
     runTest(
         list(1, 3, 6, 10),
         () ->
@@ -413,8 +451,8 @@ class TestChain {
   }
 
   @Test
-  @DisplayName("chain mapAsync 4")
-  void mapAsync4() {
+  @DisplayName("chain mapAsync 6")
+  void mapAsync6() {
     final List<Integer> values = values(0, 100);
 
     runTest(
@@ -427,13 +465,15 @@ class TestChain {
   }
 
   @Test
-  @DisplayName("chain mapAsync 5")
-  void mapAsync5() {
-    final List<Integer> values = values(0, 100);
+  @DisplayName("chain mapAsyncSequential 1")
+  void mapAsyncSequential1() {
+    mapAsyncSequential(100, 1000);
+  }
 
-    runTest(
-        values,
-        () -> with(of(values)).mapAsyncSequential(v -> supplyAsync(() -> v)).buffer(1000).get());
+  @Test
+  @DisplayName("chain mapAsyncSequential 2")
+  void mapAsyncSequential2() {
+    mapAsyncSequential(100, 1);
   }
 
   @Test

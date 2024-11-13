@@ -1,13 +1,10 @@
 package net.pincette.rs;
 
-import static net.pincette.rs.Util.initialStageDeque;
+import static java.util.concurrent.CompletableFuture.completedFuture;
 
-import java.util.Deque;
-import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionStage;
 import java.util.concurrent.Flow.Processor;
 import java.util.function.BiFunction;
-import net.pincette.function.SideEffect;
 
 /**
  * Emits the values produced by functions in the order the values arrive. The functions also receive
@@ -16,12 +13,12 @@ import net.pincette.function.SideEffect;
  *
  * @param <T> the incoming value type.
  * @param <R> the outgoing value type.
- * @author Werner Donn\u00e9
+ * @author Werner Donné
  * @since 3.0
  */
 public class AsyncDepend<T, R> extends ProcessorBase<T, R> {
   private final BiFunction<T, R, CompletionStage<R>> function;
-  private final Deque<CompletionStage<R>> stages = initialStageDeque();
+  private CompletionStage<R> previous = completedFuture(null);
 
   public AsyncDepend(final BiFunction<T, R, CompletionStage<R>> function) {
     this.function = function;
@@ -53,7 +50,7 @@ public class AsyncDepend<T, R> extends ProcessorBase<T, R> {
     dispatch(
         () -> {
           if (!getError()) {
-            stages.getFirst().thenRunAsync(() -> subscriber.onComplete());
+            previous.thenRunAsync(() -> subscriber.onComplete());
           }
         });
   }
@@ -67,32 +64,22 @@ public class AsyncDepend<T, R> extends ProcessorBase<T, R> {
     dispatch(
         () -> {
           if (!getError()) {
-            final CompletionStage<R> previous = stages.getFirst();
-            final CompletableFuture<R> next = new CompletableFuture<>();
+            previous =
+                previous
+                    .thenComposeAsync(v -> function.apply(value, v))
+                    .thenApply(
+                        r -> {
+                          subscriber.onNext(r);
+                          return r;
+                        })
+                    .exceptionally(
+                        t -> {
+                          setError(true);
+                          subscriber.onError(t);
+                          subscription.cancel();
 
-            stages.addFirst(next);
-
-            previous
-                .thenComposeAsync(v -> function.apply(value, v))
-                .thenApply(
-                    r ->
-                        SideEffect.<R>run(
-                                () -> {
-                                  subscriber.onNext(r);
-                                  next.complete(r);
-                                })
-                            .andThenGet(() -> r))
-                .exceptionally(
-                    t -> {
-                      subscriber.onError(t);
-                      subscription.cancel();
-
-                      return null;
-                    });
-
-            while (stages.size() > 10) {
-              stages.removeLast();
-            }
+                          return null;
+                        });
           }
         });
   }
