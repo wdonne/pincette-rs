@@ -11,7 +11,6 @@ import java.util.LinkedList;
 import java.util.List;
 import java.util.Optional;
 import java.util.concurrent.Flow.Processor;
-import java.util.concurrent.Flow.Subscription;
 
 /**
  * Buffers a number of values. It always requests the number of values from the publisher that
@@ -26,11 +25,11 @@ public class Per<T> extends Buffered<T, List<T>> {
   private final Deque<T> buf = new LinkedList<>();
   private final int size;
   private final Duration timeout;
-  private boolean touched = true;
+  private boolean timerOn;
 
   /**
-   * Create a buffer of <code>size</code>. The <code>requestTimeout</code> is set to
-   * <code>null</code>.
+   * Create a buffer of <code>size</code>. The <code>requestTimeout</code> is set to <code>null
+   * </code>.
    *
    * @param size the buffer size, which must be larger than zero.
    */
@@ -106,44 +105,36 @@ public class Per<T> extends Buffered<T, List<T>> {
     return generate(() -> ofNullable(getSlice(flush))).toList();
   }
 
+  private boolean hasTimeout() {
+    return timeout != null && !timeout.isZero() && !timeout.isNegative();
+  }
+
   @Override
   protected void last() {
     consumeBuffer(true).ifPresent(this::addValues);
   }
 
   public boolean onNextAction(final T value) {
-    touched = true;
     buf.addFirst(value);
+
+    if (shouldRunTimeout()) {
+      runTimeout();
+    }
 
     return sendSlices(isCompleted());
   }
 
   private void onNextTimeout() {
-    if (!getError() && !buf.isEmpty() && !touched) {
-      dispatch(() -> sendSlices(true));
+    if (!isCompleted() && !getError() && !buf.isEmpty()) {
+      sendSlices(true);
     }
 
-    touched = false;
-  }
-
-  @Override
-  public void onSubscribe(final Subscription subscription) {
-    super.onSubscribe(subscription);
-
-    if (timeout != null) {
-      runTimeout();
-    }
+    timerOn = false;
   }
 
   private void runTimeout() {
-    runAsyncAfter(
-        () -> {
-          if (!isCompleted()) {
-            runTimeout();
-            onNextTimeout();
-          }
-        },
-        timeout);
+    timerOn = true;
+    runAsyncAfter(() -> dispatch(this::onNextTimeout), timeout);
   }
 
   private boolean sendSlices(final boolean flush) {
@@ -156,5 +147,9 @@ public class Per<T> extends Buffered<T, List<T>> {
               return true;
             })
         .orElse(false);
+  }
+
+  private boolean shouldRunTimeout() {
+    return hasTimeout() && !timerOn && buf.size() != size;
   }
 }

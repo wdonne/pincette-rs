@@ -1,50 +1,46 @@
 package net.pincette.rs;
 
 import static java.nio.channels.FileChannel.open;
+import static java.nio.file.Files.delete;
 import static java.nio.file.StandardOpenOption.READ;
 import static net.pincette.rs.Chain.with;
 import static net.pincette.rs.LambdaSubscriber.lambdaSubscriber;
 import static net.pincette.rs.ReadableByteChannelPublisher.readableByteChannel;
 import static net.pincette.rs.TestUtil.copyResource;
+import static net.pincette.util.Util.autoClose;
+import static net.pincette.util.Util.tryToDoWithRethrow;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 
 import java.io.BufferedReader;
-import java.io.File;
 import java.io.FileReader;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
-import net.pincette.util.Util.GeneralException;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
 class TestLines {
   private static void run(final int bufferSize, final String resource) {
-    final File in = copyResource("/" + resource);
+    tryToDoWithRethrow(
+        autoClose(() -> copyResource("/" + resource), in -> delete(in.toPath())),
+        in -> {
+          final CompletableFuture<Void> future = new CompletableFuture<>();
+          final List<String> lines = new ArrayList<>(1000);
 
-    if (in != null) {
-      try {
-        final CompletableFuture<Void> future = new CompletableFuture<>();
-        final List<String> lines = new ArrayList<>(1000);
+          with(readableByteChannel(open(in.toPath(), READ), true, bufferSize))
+              .map(Util.lines())
+              .get()
+              .subscribe(
+                  lambdaSubscriber(
+                      lines::add,
+                      () -> {
+                        assertEquals(
+                            lines, new BufferedReader(new FileReader(in)).lines().toList());
+                        future.complete(null);
+                      }));
 
-        with(readableByteChannel(open(in.toPath(), READ), true, bufferSize))
-            .map(Util.lines())
-            .get()
-            .subscribe(
-                lambdaSubscriber(
-                    lines::add,
-                    () -> {
-                      assertEquals(lines, new BufferedReader(new FileReader(in)).lines().toList());
-                      future.complete(null);
-                    }));
-
-        future.join();
-      } catch (Exception e) {
-        throw new GeneralException(e);
-      } finally {
-        in.delete();
-      }
-    }
+          future.join();
+        });
   }
 
   @Test

@@ -1,10 +1,12 @@
 package net.pincette.rs;
 
+import static java.time.Duration.ofMillis;
 import static java.time.Duration.ofNanos;
 import static java.util.concurrent.CompletableFuture.completedFuture;
 import static java.util.concurrent.CompletableFuture.supplyAsync;
 import static net.pincette.rs.Box.box;
 import static net.pincette.rs.Chain.with;
+import static net.pincette.rs.FlattenList.flattenList;
 import static net.pincette.rs.Mapper.map;
 import static net.pincette.rs.Source.of;
 import static net.pincette.rs.TestUtil.initLogging;
@@ -13,10 +15,13 @@ import static net.pincette.rs.TestUtil.values;
 import static net.pincette.rs.Util.generate;
 import static net.pincette.rs.Util.join;
 import static net.pincette.util.Collections.list;
+import static net.pincette.util.ScheduledCompletionStage.supplyAsyncAfter;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Optional;
+import java.util.Random;
 import java.util.concurrent.Flow.Processor;
 import java.util.function.Supplier;
 import net.pincette.util.State;
@@ -512,6 +517,28 @@ class TestChain {
   @DisplayName("chain per5")
   void per5() {
     runTest(list(values(0, 5)), () -> with(of(values(0, 5))).per(10).get());
+  }
+
+  @Test
+  @DisplayName("chain per6")
+  void per6() {
+    final Random random = new Random();
+    final List<Integer> values = values(0, 10000);
+
+    runTest(
+        values,
+        () ->
+            with(of(values))
+                .mapAsync(
+                    v ->
+                        Optional.of(random.nextInt(100))
+                            .filter(i -> i == 33)
+                            .map(i -> supplyAsyncAfter(() -> v, ofMillis(100)))
+                            .orElseGet(() -> completedFuture(v)))
+                .per(10, ofMillis(50))
+                .map(flattenList())
+                .get(),
+        1);
   }
 
   @Test
