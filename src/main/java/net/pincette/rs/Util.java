@@ -647,6 +647,17 @@ public class Util {
   }
 
   /**
+   * Pulls data from a publisher without doing anything with it. You can use this to get a pipeline
+   * started that ends with some side effect.
+   *
+   * @param publisher the given publisher.
+   * @since 3.8.0
+   */
+  public static void pullForever(final Publisher<?> publisher) {
+    publisher.subscribe(devNull());
+  }
+
+  /**
    * Returns a publisher that will recreate the original publisher when an exception occurs.
    *
    * @param publisher the function to create the original publisher.

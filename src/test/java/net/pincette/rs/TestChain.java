@@ -548,6 +548,47 @@ class TestChain {
   }
 
   @Test
+  @DisplayName("chain slider1")
+  void slider1() {
+    runTest(
+        list(
+            list(0, 1, 2),
+            list(1, 2, 3),
+            list(2, 3, 4),
+            list(3, 4, 5),
+            list(4, 5, 6),
+            list(5, 6, 7),
+            list(6, 7, 8)),
+        () -> with(of(list(0, 1, 2, 3, 4, 5, 6, 7, 8))).slider(3).get());
+  }
+
+  @Test
+  @DisplayName("chain slider2")
+  void slider2() {
+    runTest(list(list(0, 1)), () -> with(of(list(0, 1))).slider(3).get());
+  }
+
+  @Test
+  @DisplayName("chain slider3")
+  void slider3() {
+    runTest(
+        list(list(0, 1), list(1, 2), list(2, 3)), () -> with(of(list(0, 1, 2, 3))).slider(2).get());
+  }
+
+  @Test
+  @DisplayName("chain slider4")
+  void slider4() {
+    runTest(
+        list(list(0), list(1), list(2), list(3)), () -> with(of(list(0, 1, 2, 3))).slider(1).get());
+  }
+
+  @Test
+  @DisplayName("chain slider5")
+  void slider5() {
+    runTest(list(), () -> with(of(list())).slider(3).get());
+  }
+
+  @Test
   @DisplayName("chain split")
   void split() {
     final List<Integer> values = values(0, 5);

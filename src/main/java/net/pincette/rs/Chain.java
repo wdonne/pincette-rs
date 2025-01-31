@@ -425,6 +425,18 @@ public class Chain<T> {
   }
 
   /**
+   * Creates a sliding window over the received elements. Each emitted value is a list with a number
+   * of elements that equals the window size, except for the last window, which may be smaller.
+   *
+   * @param window the window size.
+   * @return the new chain.
+   * @since 3.8.0
+   */
+  public Chain<List<T>> slider(final int window) {
+    return map(Slider.slider(window));
+  }
+
+  /**
    * When the upstream or downstream could cause races, this processor serializes everything with a
    * thread and a blocking queue.
    *
