@@ -1,5 +1,6 @@
 package net.pincette.rs;
 
+import static net.pincette.io.PathUtil.delete;
 import static net.pincette.rs.Box.box;
 import static net.pincette.rs.TestUtil.copyResource;
 import static net.pincette.rs.TestUtil.read;
@@ -36,7 +37,7 @@ class TestDeflateInflate {
       runFileTest(
           "/file.pdf.zz", inflate(), (in, out) -> Arrays.equals(read(uncompressed), read(out)));
     } finally {
-      uncompressed.delete();
+      delete(uncompressed.toPath());
     }
   }
 
@@ -49,7 +50,7 @@ class TestDeflateInflate {
       runFileTest(
           "/lines.txt.zz", inflate(), (in, out) -> Arrays.equals(read(uncompressed), read(out)));
     } finally {
-      uncompressed.delete();
+      delete(uncompressed.toPath());
     }
   }
 }

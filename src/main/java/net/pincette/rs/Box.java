@@ -19,7 +19,6 @@ public class Box<T, R, U> implements Processor<T, R> {
   public Box(final Processor<T, U> first, final Processor<U, R> second) {
     this.first = first;
     this.second = second;
-    first.subscribe(second);
   }
 
   public static <T, R, U> Processor<T, R> box(
@@ -49,5 +48,6 @@ public class Box<T, R, U> implements Processor<T, R> {
     }
 
     second.subscribe(subscriber);
+    first.subscribe(second);
   }
 }

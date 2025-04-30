@@ -19,6 +19,7 @@ public abstract class ProcessorBase<T, R> implements Processor<T, R> {
   private boolean completed;
   private boolean error;
   private Throwable pendingException;
+  private boolean subscriberNotified;
 
   /** Cancels the upstream. */
   public void cancel() {
@@ -57,7 +58,8 @@ public abstract class ProcessorBase<T, R> implements Processor<T, R> {
   }
 
   private void notifySubscriber() {
-    if (subscriber != null && subscription != null) {
+    if (subscriber != null && subscription != null && !subscriberNotified) {
+      subscriberNotified = true;
       subscriber.onSubscribe(new Backpressure());
 
       if (pendingException != null) {

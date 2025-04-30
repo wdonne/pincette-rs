@@ -261,7 +261,7 @@ public class Util {
   }
 
   public static <T> Subscriber<T> devNull() {
-    return lambdaSubscriber(v -> {});
+    return lambdaSubscriber(v -> {}, () -> {}, t -> {});
   }
 
   /**

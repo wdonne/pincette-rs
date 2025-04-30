@@ -15,7 +15,7 @@ import net.pincette.function.RunnableWithException;
  * subscription one by one.
  *
  * @param <T> the parameterized type.
- * @author Werner Donn\u00e9
+ * @author Werner Donné
  * @since 1.0
  */
 public class LambdaSubscriber<T> implements Subscriber<T> {

@@ -5,6 +5,7 @@ import java.util.List;
 import java.util.concurrent.CompletionStage;
 import java.util.concurrent.Flow.Processor;
 import java.util.concurrent.Flow.Publisher;
+import java.util.concurrent.Flow.Subscriber;
 import java.util.function.BiFunction;
 import java.util.function.Consumer;
 import java.util.function.Function;
@@ -274,9 +275,14 @@ public class Chain<T> {
    * @since 1.0
    */
   public <R> Chain<R> map(final Processor<T, R> processor) {
-    publisher.subscribe(processor);
-
-    return new Chain<>(processor);
+    return new Chain<>(
+        new Delegate<>(processor) {
+          @Override
+          public void subscribe(final Subscriber<? super R> subscriber) {
+            super.subscribe(subscriber);
+            publisher.subscribe(processor);
+          }
+        });
   }
 
   /**

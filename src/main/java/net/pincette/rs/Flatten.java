@@ -55,11 +55,15 @@ public class Flatten<T> extends ProcessorBase<Publisher<T>, T> {
   private void more() {
     trace(LOGGER, () -> "subscription request");
 
-    if (subscription != null) {
-      subscription.request(1);
-    } else {
-      pendingRequest = true;
-    }
+    dispatch(
+        () -> {
+          if (subscription != null) {
+            trace(LOGGER, () -> "upstream request");
+            subscription.request(1);
+          } else {
+            pendingRequest = true;
+          }
+        });
   }
 
   @Override
@@ -80,18 +84,24 @@ public class Flatten<T> extends ProcessorBase<Publisher<T>, T> {
 
   @Override
   public void onSubscribe(final Subscription subscription) {
+    trace(LOGGER, () -> "onSubscribe");
     super.onSubscribe(subscription);
 
-    if (pendingRequest) {
-      pendingRequest = false;
-      dispatch(this::more);
-    }
+    dispatch(
+        () -> {
+          if (pendingRequest) {
+            trace(LOGGER, () -> "pending request");
+            pendingRequest = false;
+            dispatch(this::more);
+          }
+        });
   }
 
   @Override
   public void subscribe(final Subscriber<? super T> subscriber) {
     final Processor<T, T> buf = buffer(1);
 
+    trace(LOGGER, () -> "subscribe");
     monitor.subscribe(buf);
     buf.subscribe(subscriber);
   }

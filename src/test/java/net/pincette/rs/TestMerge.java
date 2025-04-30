@@ -28,7 +28,7 @@ import org.junit.jupiter.api.Test;
 
 class TestMerge {
   @BeforeAll
-  public static void beforeAll() {
+  static void beforeAll() {
     initLogging();
   }
 

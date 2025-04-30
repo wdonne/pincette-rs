@@ -20,6 +20,9 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
 class TestLines {
+  private static final String LONG = "large.csv";
+  private static final String SHORT = "lines.txt";
+
   private static void run(final int bufferSize, final String resource) {
     tryToDoWithRethrow(
         autoClose(() -> copyResource("/" + resource), in -> delete(in.toPath())),
@@ -46,36 +49,36 @@ class TestLines {
   @Test
   @DisplayName("lines1")
   void lines1() {
-    run(0xffff, "lines.txt");
+    run(0xffff, SHORT);
   }
 
   @Test
   @DisplayName("lines2")
   void lines2() {
-    run(10, "lines.txt");
+    run(10, SHORT);
   }
 
   @Test
   @DisplayName("lines3")
   void lines3() {
-    run(2, "lines.txt");
+    run(2, SHORT);
   }
 
   @Test
   @DisplayName("lines4")
   void lines4() {
-    run(0xffff, "large.csv");
+    run(0xffff, LONG);
   }
 
   @Test
   @DisplayName("lines5")
   void lines5() {
-    run(10, "large.csv");
+    run(10, LONG);
   }
 
   @Test
   @DisplayName("lines6")
   void lines6() {
-    run(2, "large.csv");
+    run(2, LONG);
   }
 }

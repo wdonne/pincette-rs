@@ -31,7 +31,7 @@ import org.junit.jupiter.api.Test;
 
 class TestChain {
   @BeforeAll
-  public static void beforeAll() {
+  static void beforeAll() {
     initLogging();
   }
 

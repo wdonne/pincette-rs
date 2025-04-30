@@ -5,6 +5,7 @@ import static java.nio.channels.FileChannel.open;
 import static java.nio.file.StandardOpenOption.READ;
 import static java.nio.file.StandardOpenOption.SYNC;
 import static java.nio.file.StandardOpenOption.WRITE;
+import static net.pincette.io.PathUtil.delete;
 import static net.pincette.rs.Base64.base64Decoder;
 import static net.pincette.rs.Base64.base64Encoder;
 import static net.pincette.rs.Chain.with;
@@ -57,9 +58,9 @@ class TestBase64 {
       } catch (Exception e) {
         throw new GeneralException(e);
       } finally {
-        in.delete();
-        encoded.delete();
-        out.delete();
+        delete(in.toPath());
+        delete(encoded.toPath());
+        delete(out.toPath());
       }
     }
   }
