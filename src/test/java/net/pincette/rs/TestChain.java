@@ -1,5 +1,6 @@
 package net.pincette.rs;
 
+import static java.lang.Thread.sleep;
 import static java.time.Duration.ofMillis;
 import static java.time.Duration.ofNanos;
 import static java.util.concurrent.CompletableFuture.completedFuture;
@@ -16,7 +17,9 @@ import static net.pincette.rs.Util.generate;
 import static net.pincette.rs.Util.join;
 import static net.pincette.util.Collections.list;
 import static net.pincette.util.ScheduledCompletionStage.supplyAsyncAfter;
+import static net.pincette.util.Util.tryToDoRethrow;
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -39,6 +42,23 @@ class TestChain {
     final List<Integer> values = values(0, 10);
 
     runTest(values, () -> with(of(values)).buffer(size).get());
+  }
+
+  private static void flatMapAsyncPub(final int values, final int executions) {
+    final List<Integer> block = values(0, 10);
+    final List<Integer> list = values(0, values);
+
+    runTest(
+        list.stream().flatMap(v -> block.stream()).toList(),
+        () ->
+            with(of(list))
+                .mapAsync(
+                    v ->
+                        supplyAsync(
+                            () -> with(of(block)).mapAsync(b -> supplyAsync(() -> b)).get()))
+                .flatMap(p -> p)
+                .get(),
+        executions);
   }
 
   private static void flattenTest1(final Supplier<Processor<List<Integer>, Integer>> processor) {
@@ -155,6 +175,43 @@ class TestChain {
   @DisplayName("chain after before many 3")
   void afterBeforeMany3() {
     runTest(list(), () -> with(of(list())).beforeIfMany(1).afterIfMany(-1).get());
+  }
+
+  @Test
+  @DisplayName("chain backpressureTimeout1")
+  void backpressureTimeout1() {
+    assertThrows(
+        Exception.class,
+        () ->
+            runTest(
+                list(),
+                () ->
+                    with(of(list(1, 2)))
+                        .backpressureTimeout(ofMillis(10))
+                        .map(
+                            v -> {
+                              tryToDoRethrow(() -> sleep(20));
+                              return v;
+                            })
+                        .get(),
+                1));
+  }
+
+  @Test
+  @DisplayName("chain backpressureTimeout2")
+  void backpressureTimeout2() {
+    runTest(
+        list(1, 2),
+        () ->
+            with(of(list(1, 2)))
+                .backpressureTimeout(ofMillis(10))
+                .map(
+                    v -> {
+                      tryToDoRethrow(() -> sleep(5));
+                      return v;
+                    })
+                .get(),
+        1);
   }
 
   @Test
@@ -350,8 +407,19 @@ class TestChain {
         () ->
             with(of(values(0, 3)))
                 .flatMap(i -> with(of(lists.get(i))).mapAsync(v -> supplyAsync(() -> v)).get())
-                .get(),
-        1);
+                .get());
+  }
+
+  @Test
+  @DisplayName("chain flatMap3")
+  void flatMap3() {
+    flatMapAsyncPub(5000, 10);
+  }
+
+  @Test
+  @DisplayName("chain flatMap4")
+  void flatMap4() {
+    flatMapAsyncPub(50, 1000);
   }
 
   @Test

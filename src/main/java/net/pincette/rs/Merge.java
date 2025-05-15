@@ -104,6 +104,22 @@ public class Merge<T> implements Publisher<T> {
   }
 
   private class Backpressure implements Subscription {
+    private static long[] spreadRequests(final long n, final int numberSubscribers) {
+      final long[] result = new long[numberSubscribers];
+
+      fill(result, 0);
+
+      long remaining = n;
+
+      while (remaining > 0) {
+        for (int i = 0; i < result.length && remaining > 0; ++i, --remaining) {
+          result[i] += 1;
+        }
+      }
+
+      return result;
+    }
+
     public void cancel() {
       branchSubscribers.forEach(b -> b.subscription.cancel());
     }
@@ -165,22 +181,6 @@ public class Merge<T> implements Publisher<T> {
 
     private List<BranchSubscriber> selectSubscribers(final Predicate<BranchSubscriber> filter) {
       return branchSubscribers.stream().filter(filter).sorted(schedule()).toList();
-    }
-
-    private long[] spreadRequests(final long n, final int numberSubscribers) {
-      final long[] result = new long[numberSubscribers];
-
-      fill(result, 0);
-
-      long remaining = n;
-
-      while (remaining > 0) {
-        for (int i = 0; i < result.length && remaining > 0; ++i, --remaining) {
-          result[i] += 1;
-        }
-      }
-
-      return result;
     }
   }
 

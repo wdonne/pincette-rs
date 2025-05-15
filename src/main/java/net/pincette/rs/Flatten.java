@@ -24,6 +24,7 @@ import java.util.logging.Logger;
 public class Flatten<T> extends ProcessorBase<Publisher<T>, T> {
   private static final Logger LOGGER = getLogger(Flatten.class.getName());
   private final Monitor monitor = new Monitor();
+  private boolean pendingElement;
   private boolean pendingRequest;
 
   /**
@@ -57,6 +58,8 @@ public class Flatten<T> extends ProcessorBase<Publisher<T>, T> {
 
     dispatch(
         () -> {
+          pendingElement = false;
+
           if (subscription != null) {
             trace(LOGGER, () -> "upstream request");
             subscription.request(1);
@@ -68,8 +71,20 @@ public class Flatten<T> extends ProcessorBase<Publisher<T>, T> {
 
   @Override
   public void onComplete() {
-    trace(LOGGER, () -> "onComplete");
-    monitor.complete();
+    dispatch(
+        () -> {
+          trace(LOGGER, () -> "onComplete");
+          monitor.complete();
+
+          if (!pendingElement) {
+            monitor.onComplete();
+          }
+        });
+  }
+
+  @Override
+  public void onError(Throwable t) {
+    monitor.onError(t);
   }
 
   @Override
@@ -78,8 +93,12 @@ public class Flatten<T> extends ProcessorBase<Publisher<T>, T> {
       throw new NullPointerException("Can't emit null.");
     }
 
-    trace(LOGGER, () -> "onNext");
-    publisher.subscribe(monitor);
+    dispatch(
+        () -> {
+          trace(LOGGER, () -> "onNext");
+          pendingElement = true;
+          publisher.subscribe(monitor);
+        });
   }
 
   @Override

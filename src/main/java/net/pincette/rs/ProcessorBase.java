@@ -41,10 +41,18 @@ public abstract class ProcessorBase<T, R> implements Processor<T, R> {
         });
   }
 
+  protected boolean cancelled() {
+    return cancelled;
+  }
+
   /** Completes the downstream and cancels the upstream. */
   protected void complete() {
     onComplete();
     cancel();
+  }
+
+  protected boolean completed() {
+    return completed;
   }
 
   protected void dispatch(final Runnable action) {
@@ -58,12 +66,12 @@ public abstract class ProcessorBase<T, R> implements Processor<T, R> {
   }
 
   private void notifySubscriber() {
-    if (subscriber != null && subscription != null && !subscriberNotified) {
-      subscriberNotified = true;
-      subscriber.onSubscribe(new Backpressure());
-
+    if (subscriber != null) {
       if (pendingException != null) {
         subscriber.onError(pendingException);
+      } else if (subscription != null && !subscriberNotified) {
+        subscriberNotified = true;
+        subscriber.onSubscribe(new Backpressure());
       }
     }
   }

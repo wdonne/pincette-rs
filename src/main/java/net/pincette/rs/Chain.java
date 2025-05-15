@@ -95,6 +95,16 @@ public class Chain<T> {
   }
 
   /**
+   * Emits an error signal if no backpressure signal was received within a given timeout period.
+   *
+   * @return The new chain.
+   * @since 3.9.0
+   */
+  public Chain<T> backpressureTimeout(final Duration timeout) {
+    return map(BackpressureTimout.backpressureTimeout(timeout));
+  }
+
+  /**
    * Puts <code>value</code> before the stream.
    *
    * @param value the value to emit. It may be <code>null</code>.
