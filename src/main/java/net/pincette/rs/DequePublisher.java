@@ -101,6 +101,10 @@ public class DequePublisher<T> implements Publisher<T> {
     return deque;
   }
 
+  public boolean isClosed() {
+    return closed;
+  }
+
   private void onError(final Throwable t) {
     if (subscriber != null) {
       subscriber.onError(t);

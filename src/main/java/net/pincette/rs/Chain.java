@@ -97,11 +97,26 @@ public class Chain<T> {
   /**
    * Emits an error signal if no backpressure signal was received within a given timeout period.
    *
+   * @param timeout the time after which the error signal is sent if there was no backpressure
+   *     signal. If it is <code>null</code> or zero, no timeout will be active.
    * @return The new chain.
    * @since 3.9.0
    */
   public Chain<T> backpressureTimeout(final Duration timeout) {
     return map(BackpressureTimout.backpressureTimeout(timeout));
+  }
+
+  /**
+   * Emits an error signal if no backpressure signal was received within a given timeout period.
+   *
+   * @param timeout the time after which the error signal is sent if there was no backpressure
+   *     signal. If it is <code>null</code> or zero, no timeout will be active.
+   * @param errorMessage the extra error message. It can be <code>null</code>.
+   * @return The new chain.
+   * @since 3.9.1
+   */
+  public Chain<T> backpressureTimeout(final Duration timeout, final Supplier<String> errorMessage) {
+    return map(BackpressureTimout.backpressureTimeout(timeout, errorMessage));
   }
 
   /**
