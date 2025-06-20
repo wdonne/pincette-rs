@@ -665,6 +665,14 @@ class TestChain {
   }
 
   @Test
+  @DisplayName("chain throttle")
+  void throttle() {
+    final List<Integer> list = values(0, 100000);
+
+    runTest(list, () -> with(of(list)).throttle(10000).get(), 1);
+  }
+
+  @Test
   @DisplayName("chain until1")
   void until1() {
     runTest(list(1), () -> with(of(list(1, 2, 3, 4))).until(v -> v == 1).get());

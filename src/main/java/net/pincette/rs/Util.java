@@ -866,8 +866,10 @@ public class Util {
         second = now;
       }
 
-      return ++count >= maxPerSecond
-          ? supplyAsyncAfter(() -> true, between(now(), now.plusSeconds(1)))
+      final Duration remaining = between(now(), now.plusSeconds(1));
+
+      return ++count >= maxPerSecond && !remaining.isNegative()
+          ? supplyAsyncAfter(() -> true, remaining)
           : completedFuture(true);
     }
   }
