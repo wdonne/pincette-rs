@@ -7,7 +7,7 @@ import static java.nio.file.StandardOpenOption.SYNC;
 import static java.nio.file.StandardOpenOption.WRITE;
 import static java.util.Objects.requireNonNull;
 import static java.util.logging.LogManager.getLogManager;
-import static java.util.stream.Collectors.toCollection;
+import static net.pincette.io.PathUtil.delete;
 import static net.pincette.io.StreamConnector.copy;
 import static net.pincette.rs.Chain.with;
 import static net.pincette.rs.ReadableByteChannelPublisher.readableByteChannel;
@@ -36,9 +36,8 @@ import java.util.function.Supplier;
 import net.pincette.util.Util.GeneralException;
 
 class TestUtil {
-  static <T> List<T> asListIter(final Publisher<T> publisher, final int initialCapacity) {
-    return stream(iterate(publisher).iterator())
-        .collect(toCollection(() -> new ArrayList<>(initialCapacity)));
+  static <T> List<T> asListIter(final Publisher<T> publisher) {
+    return stream(iterate(publisher).iterator()).toList();
   }
 
   static File copyResource(final String resource) {
@@ -95,8 +94,8 @@ class TestUtil {
       } catch (Exception e) {
         throw new GeneralException(e);
       } finally {
-        in.delete();
-        out.delete();
+        delete(in.toPath());
+        delete(out.toPath());
       }
     }
   }
@@ -116,10 +115,10 @@ class TestUtil {
       final int times,
       final boolean withIter) {
     for (int i = 0; i < times; ++i) {
-      assertEquals(target, new ArrayList<>(asList(publisher.get(), target.size())));
+      assertEquals(target, asList(publisher.get()));
 
       if (withIter) {
-        assertEquals(target, new ArrayList<>(asListIter(publisher.get(), target.size())));
+        assertEquals(target, asListIter(publisher.get()));
       }
     }
   }

@@ -1,5 +1,6 @@
 package net.pincette.rs;
 
+import java.util.UUID;
 import java.util.concurrent.Flow.Processor;
 import java.util.concurrent.Flow.Subscriber;
 import java.util.concurrent.Flow.Subscription;
@@ -18,6 +19,7 @@ public abstract class ProcessorBase<T, R> implements Processor<T, R> {
   private boolean cancelled;
   private boolean completed;
   private boolean error;
+  private final String key = UUID.randomUUID().toString();
   private Throwable pendingException;
   private boolean subscriberNotified;
 
@@ -56,7 +58,7 @@ public abstract class ProcessorBase<T, R> implements Processor<T, R> {
   }
 
   protected void dispatch(final Runnable action) {
-    Serializer.dispatch(action::run, this::onError);
+    Serializer.dispatch(action::run, this::onError, key);
   }
 
   protected abstract void emit(final long number);

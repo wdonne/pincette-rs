@@ -66,7 +66,8 @@ class TestChain {
 
     runTest(
         values,
-        () -> with(of(values)).per(3).map(processor.get()).map(v -> v + 1).map(v -> v - 1).get());
+        () -> with(of(values)).per(3).map(processor.get()).map(v -> v + 1).map(v -> v - 1).get(),
+        100);
 
     runTest(
         values,
@@ -478,12 +479,28 @@ class TestChain {
     runTest(list(), () -> with(of(list())).last().get());
   }
 
-  @Test
-  @DisplayName("chain map")
-  void mapInt() {
+  private void mapInt(final int bufferSize) {
     final List<Integer> values = values(0, 1000);
 
-    runTest(values, () -> with(of(values)).map(v -> v).buffer(1000).get());
+    runTest(values, () -> with(of(values)).map(v -> v).buffer(bufferSize).get(), 50000);
+  }
+
+  @Test
+  @DisplayName("chain map1")
+  void map1() {
+    mapInt(1000);
+  }
+
+  @Test
+  @DisplayName("chain map2")
+  void map2() {
+    mapInt(10);
+  }
+
+  @Test
+  @DisplayName("chain map3")
+  void map3() {
+    mapInt(10000);
   }
 
   @Test

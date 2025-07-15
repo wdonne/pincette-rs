@@ -194,10 +194,8 @@ public abstract class Buffered<T, R> extends ProcessorBase<T, R> {
           if (needMore()) {
             trace(logger, () -> "needMore");
             more(requestSize);
-          } else {
-            if (timeout != null && timeout.isZero()) {
-              keepItGoing();
-            }
+          } else if (timeout != null && timeout.isZero()) {
+            keepItGoing();
           }
         });
   }

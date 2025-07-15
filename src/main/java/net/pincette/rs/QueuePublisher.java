@@ -1,8 +1,8 @@
 package net.pincette.rs;
 
 import java.util.ArrayList;
-import java.util.Deque;
 import java.util.List;
+import java.util.Queue;
 import java.util.UUID;
 import java.util.concurrent.Flow.Publisher;
 import java.util.concurrent.Flow.Subscriber;
@@ -10,16 +10,14 @@ import java.util.concurrent.Flow.Subscription;
 import net.pincette.util.NotifyingDeque;
 
 /**
- * A publisher that is fed by a deque. The elements should be added to the head of the queue.
+ * A publisher that is fed by a queue.
  *
  * @param <T> the value type.
  * @author Werner Donné
- * @since 3.1
- * @deprecated use {@link QueuePublisher} instead.
+ * @since 3.10.0
  */
-@Deprecated(since = "3.10.0", forRemoval = true)
-public class DequePublisher<T> implements Publisher<T> {
-  private final Deque<T> deque = new NotifyingDeque<>(this::added, null);
+public class QueuePublisher<T> implements Publisher<T> {
+  private final Queue<T> queue = new NotifyingDeque<>(this::added, null);
   private boolean closed;
   private boolean completed;
   private final String key = UUID.randomUUID().toString();
@@ -27,16 +25,16 @@ public class DequePublisher<T> implements Publisher<T> {
   private Subscriber<? super T> subscriber;
 
   /**
-   * Creates a deque publisher.
+   * Creates a queue publisher.
    *
    * @return The publisher.
    * @param <T> the value type.
    */
-  public static <T> DequePublisher<T> dequePublisher() {
-    return new DequePublisher<>();
+  public static <T> QueuePublisher<T> queuePublisher() {
+    return new QueuePublisher<>();
   }
 
-  private void added(final Deque<T> deque) {
+  private void added(final Queue<T> queue) {
     if (closed) {
       throw new UnsupportedOperationException("The publisher is already closed.");
     }
@@ -53,7 +51,7 @@ public class DequePublisher<T> implements Publisher<T> {
         () -> {
           closed = true;
 
-          if (deque.isEmpty()) {
+          if (queue.isEmpty()) {
             complete();
           }
         });
@@ -68,8 +66,8 @@ public class DequePublisher<T> implements Publisher<T> {
     int i;
     final List<T> result = new ArrayList<>((int) requested);
 
-    for (i = 0; i < requested && !deque.isEmpty(); ++i) {
-      result.add(deque.removeLast());
+    for (i = 0; i < requested && !queue.isEmpty(); ++i) {
+      result.add(queue.remove());
     }
 
     requested -= i;
@@ -89,20 +87,19 @@ public class DequePublisher<T> implements Publisher<T> {
         dispatch(() -> elements.forEach(e -> subscriber.onNext(e)));
       }
 
-      if (closed && deque.isEmpty()) {
+      if (closed && queue.isEmpty()) {
         complete();
       }
     }
   }
 
   /**
-   * Returns the deque to which the elements are fed. You should only add elements to the head of
-   * the deque, otherwise the publishing order will be random.
+   * Returns the queue to which the elements are fed.
    *
-   * @return The deque.
+   * @return The queue.
    */
-  public Deque<T> getDeque() {
-    return deque;
+  public Queue<T> getQueue() {
+    return queue;
   }
 
   public boolean isClosed() {
@@ -126,7 +123,7 @@ public class DequePublisher<T> implements Publisher<T> {
 
   private class Backpressure implements Subscription {
     public void cancel() {
-      deque.clear();
+      queue.clear();
       close();
     }
 

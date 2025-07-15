@@ -17,7 +17,7 @@ import java.util.function.Consumer;
 import net.pincette.function.SideEffect;
 
 /**
- * With this class a publisher can be wrapped in a blocking iterable. It buffers the received
+ * With this class, a publisher can be wrapped in a blocking iterable. It buffers the received
  * elements proportional to the size of the requests towards the publisher.
  *
  * @param <T> the element type.
@@ -130,8 +130,11 @@ public class BlockingSubscriber<T> implements Subscriber<T>, Iterable<T> {
 
   private class Elements implements Iterator<T> {
     public boolean hasNext() {
-      return !queue.isEmpty()
-          || (!complete && SideEffect.<Boolean>run(this::park).andThenGet(this::hasNext));
+      if (queue.isEmpty() && !complete) {
+        park();
+      }
+
+      return !queue.isEmpty();
     }
 
     public T next() {

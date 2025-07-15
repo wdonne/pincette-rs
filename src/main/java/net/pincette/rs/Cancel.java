@@ -1,8 +1,12 @@
 package net.pincette.rs;
 
+import static java.util.logging.Logger.getLogger;
+import static net.pincette.rs.Util.trace;
+
 import java.util.concurrent.Flow.Processor;
 import java.util.concurrent.Flow.Subscription;
 import java.util.function.Predicate;
+import java.util.logging.Logger;
 
 /**
  * Cancels the upstream if the given condition is met and completes the stream.
@@ -12,6 +16,8 @@ import java.util.function.Predicate;
  * @since 3.2
  */
 public class Cancel<T> extends PassThrough<T> {
+  private static final Logger LOGGER = getLogger(Cancel.class.getName());
+
   private final Predicate<T> shouldCancel;
   private boolean cancelled;
 
@@ -29,17 +35,26 @@ public class Cancel<T> extends PassThrough<T> {
   }
 
   @Override
+  public void onComplete() {
+    dispatch(super::onComplete);
+  }
+
+  @Override
   public void onNext(final T value) {
     dispatch(
         () -> {
+          trace(LOGGER, () -> "onNext " + value);
+
           if (!cancelled) {
             cancelled = shouldCancel.test(value);
+            trace(LOGGER, () -> "onNext " + value + " to subscriber " + subscriber);
             super.onNext(
                 value); // Do this first to preserve order because cancel may produce messages.
 
             if (cancelled) {
+              trace(LOGGER, () -> "cancel");
               subscription.cancel();
-              super.onComplete();
+              onComplete();
             }
           }
         });

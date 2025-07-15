@@ -11,6 +11,7 @@ import static net.pincette.rs.Util.trace;
 import java.util.Comparator;
 import java.util.List;
 import java.util.Optional;
+import java.util.UUID;
 import java.util.concurrent.Flow.Processor;
 import java.util.concurrent.Flow.Publisher;
 import java.util.concurrent.Flow.Subscriber;
@@ -29,6 +30,7 @@ public class Merge<T> implements Publisher<T> {
   private final List<BranchSubscriber> branchSubscribers;
   private final Logger logger = getLogger(getClass().getName());
   private boolean completed;
+  private final String key = UUID.randomUUID().toString();
   private long requestSequence;
   private Subscriber<? super T> subscriber;
 
@@ -77,7 +79,7 @@ public class Merge<T> implements Publisher<T> {
   }
 
   private void dispatch(final Runnable action) {
-    Serializer.dispatch(action::run, this::onError);
+    Serializer.dispatch(action::run, this::onError, key);
   }
 
   private void notifySubscriber() {

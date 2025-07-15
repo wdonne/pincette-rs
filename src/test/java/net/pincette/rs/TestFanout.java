@@ -5,6 +5,7 @@ import static java.util.concurrent.CompletableFuture.supplyAsync;
 import static net.pincette.rs.Buffer.buffer;
 import static net.pincette.rs.Chain.with;
 import static net.pincette.rs.Source.of;
+import static net.pincette.rs.TestUtil.initLogging;
 import static net.pincette.rs.TestUtil.runTest;
 import static net.pincette.rs.TestUtil.values;
 import static net.pincette.rs.Util.devNull;
@@ -22,6 +23,7 @@ import java.util.concurrent.Flow.Subscriber;
 import java.util.function.BiFunction;
 import java.util.function.BinaryOperator;
 import java.util.function.Consumer;
+import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
@@ -44,7 +46,7 @@ class TestFanout {
       final BinaryOperator<Subscriber<Integer>> fanout) {
     final List<Integer> first = new ArrayList<>();
     final CountDownLatch latch = new CountDownLatch(2);
-    final List<Integer> values = values(0, 1000);
+    final List<Integer> values = values(0, 10000);
     final List<Integer> second = new ArrayList<>();
 
     with(Merge.of(
@@ -57,6 +59,11 @@ class TestFanout {
     tryToDo(latch::await);
     assertEquals(values, first);
     assertEquals(values, second);
+  }
+
+  @BeforeAll
+  static void beforeAll() {
+    initLogging();
   }
 
   @Test

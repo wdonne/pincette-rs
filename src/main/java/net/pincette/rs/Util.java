@@ -35,7 +35,6 @@ import static net.pincette.util.Util.tryToDoRethrow;
 import java.nio.ByteBuffer;
 import java.time.Duration;
 import java.time.Instant;
-import java.util.ArrayDeque;
 import java.util.ArrayList;
 import java.util.Deque;
 import java.util.List;
@@ -459,14 +458,6 @@ public class Util {
     return encode(Inflate.inflate(inflater));
   }
 
-  static <T> Deque<CompletionStage<T>> initialStageDeque() {
-    final ArrayDeque<CompletionStage<T>> deque = new ArrayDeque<>(1000);
-
-    deque.addFirst(completedFuture(null));
-
-    return deque;
-  }
-
   /**
    * Returns a blocking <code>Iterable</code> with a request size of 100.
    *
@@ -815,14 +806,16 @@ public class Util {
               onException.accept(t);
             }
 
-            composeAsyncAfter(() -> completedFuture(publisher.get()), retryInterval)
-                .thenAccept(
-                    p ->
-                        dispatch(
-                            () -> {
-                              setError(false);
-                              p.subscribe(this);
-                            }));
+            if (!completed() && !cancelled()) {
+              composeAsyncAfter(() -> completedFuture(publisher.get()), retryInterval)
+                  .thenAccept(
+                      p ->
+                          dispatch(
+                              () -> {
+                                setError(false);
+                                p.subscribe(this);
+                              }));
+            }
           });
     }
 

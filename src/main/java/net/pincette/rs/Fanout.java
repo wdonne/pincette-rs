@@ -9,6 +9,7 @@ import static net.pincette.util.StreamUtil.zip;
 
 import java.util.List;
 import java.util.Optional;
+import java.util.UUID;
 import java.util.concurrent.Flow.Subscriber;
 import java.util.concurrent.Flow.Subscription;
 import java.util.function.Function;
@@ -26,6 +27,7 @@ import java.util.stream.Stream;
  */
 public class Fanout<T> implements Subscriber<T> {
   private final UnaryOperator<T> duplicator;
+  private final String key = UUID.randomUUID().toString();
   private final List<Backpressure> subscriptions;
   private Subscription subscription;
 
@@ -176,7 +178,7 @@ public class Fanout<T> implements Subscriber<T> {
   }
 
   private void dispatch(final Runnable action) {
-    Serializer.dispatch(action::run, this::onError);
+    Serializer.dispatch(action::run, this::onError, key);
   }
 
   public void onComplete() {

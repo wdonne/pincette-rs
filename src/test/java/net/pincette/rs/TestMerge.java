@@ -38,7 +38,7 @@ class TestMerge {
       LOGGER.finest("runTest asList");
       assertEquals(target, sort(asList(publisher.get(), target.size())));
       LOGGER.finest("runTest asListIter");
-      assertEquals(target, sort(asListIter(publisher.get(), target.size())));
+      assertEquals(target, sort(asListIter(publisher.get())));
     }
   }
 
