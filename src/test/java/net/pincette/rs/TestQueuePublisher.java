@@ -4,7 +4,9 @@ import static net.pincette.rs.TestUtil.runTest;
 import static net.pincette.rs.TestUtil.values;
 import static net.pincette.util.StreamUtil.supplyAsyncStream;
 
+import java.util.ArrayDeque;
 import java.util.List;
+import java.util.Queue;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
@@ -85,5 +87,27 @@ class TestQueuePublisher {
           return publisher;
         },
         100);
+  }
+
+  @Test
+  @DisplayName("queue publisher 5")
+  void queuePublisher5() {
+    runTest(
+        VALUES,
+        () -> {
+          final Queue<Integer> queue = new ArrayDeque<>(VALUES);
+
+          return new QueuePublisher<>(
+              (p, r) -> {
+                for (int i = 0; i < r && !queue.isEmpty(); ++i) {
+                  p.getQueue().add(queue.remove());
+                }
+
+                if (queue.isEmpty()) {
+                  p.close();
+                }
+              });
+        },
+        1000);
   }
 }

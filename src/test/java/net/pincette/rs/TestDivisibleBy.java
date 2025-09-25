@@ -27,7 +27,7 @@ class TestDivisibleBy {
     }
 
     assertTrue(
-        Optional.of(buffers.get(buffers.size() - 1).remaining())
+        Optional.of(buffers.getLast().remaining())
             .map(size -> size % n == 0 || size < n)
             .orElse(false));
     assertEquals(totalSize, totalSize(buffers));

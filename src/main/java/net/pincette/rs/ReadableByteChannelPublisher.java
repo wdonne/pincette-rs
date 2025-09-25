@@ -13,7 +13,7 @@ import java.util.concurrent.Flow.Subscription;
 /**
  * Publishes the contents of a channel as <code>ByteBuffer</code>s.
  *
- * @author Werner Donn\u00e9
+ * @author Werner Donné
  * @since 3.0
  */
 public class ReadableByteChannelPublisher implements Publisher<ByteBuffer> {

@@ -204,10 +204,10 @@ public class Fanout<T> implements Subscriber<T> {
 
     if (this.subscription != null) {
       subscription.cancel();
-    } else {
-      this.subscription = subscription;
-      subscriptions.forEach(s -> s.subscriber.onSubscribe(s));
     }
+
+    this.subscription = subscription;
+    subscriptions.forEach(s -> s.subscriber.onSubscribe(s));
   }
 
   private void sendValues(final T value) {

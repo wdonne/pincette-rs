@@ -12,7 +12,7 @@ import java.util.concurrent.Flow.Subscription;
  * Emits a list of values.
  *
  * @param <T> the object type of the values.
- * @author Werner Donn\u00e9
+ * @author Werner Donné
  * @since 1.0
  */
 public class Source<T> implements Publisher<T> {

@@ -9,7 +9,7 @@ import java.util.concurrent.Flow.Subscription;
  *
  * @param <T> the incoming value type.
  * @param <R> the outgoing value type.
- * @author Werner Donn\u00e9
+ * @author Werner Donné
  * @since 3.0
  */
 public class Delegate<T, R> implements Processor<T, R> {

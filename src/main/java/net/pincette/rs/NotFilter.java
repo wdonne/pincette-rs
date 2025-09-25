@@ -7,7 +7,7 @@ import java.util.function.Predicate;
  * Filters elements based on the negation opf a predicate.
  *
  * @param <T> the value type.
- * @author Werner Donn\u00e9
+ * @author Werner Donné
  * @since 1.4
  */
 public class NotFilter<T> extends Mapper<T, T> {

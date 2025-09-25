@@ -6,7 +6,7 @@ import java.util.concurrent.Flow.Processor;
  * Emits the last value it receives and then completes the stream.
  *
  * @param <T> the value type.
- * @author Werner Donn\u00e9
+ * @author Werner Donné
  * @since 1.4
  */
 public class Last<T> extends PassThrough<T> {

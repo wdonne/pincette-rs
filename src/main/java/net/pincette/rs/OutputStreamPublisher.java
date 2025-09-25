@@ -15,7 +15,7 @@ import java.util.concurrent.Flow.Subscription;
  * This is an output stream that can be used as a reactive streams publisher. It complies with the
  * reactive backpressure mechanism.
  *
- * @author Werner Donn\u00e9
+ * @author Werner Donné
  * @since 1.0
  */
 public class OutputStreamPublisher extends OutputStream implements Publisher<ByteBuffer> {

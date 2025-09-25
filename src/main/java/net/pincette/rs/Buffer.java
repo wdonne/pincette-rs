@@ -11,7 +11,7 @@ import java.util.concurrent.Flow.Processor;
  *
  * @param <T> the value type.
  * @since 1.7
- * @author Werner Donn\u00e8
+ * @author Werner Donné
  */
 public class Buffer<T> extends Buffered<T, T> {
   public Buffer(final int size) {
@@ -22,12 +22,21 @@ public class Buffer<T> extends Buffered<T, T> {
     super(size, timeout);
   }
 
+  Buffer(final int size, final Duration timeout, final boolean internalMode) {
+    super(size, timeout, internalMode);
+  }
+
   public static <T> Processor<T, T> buffer(final int size) {
     return new Buffer<>(size);
   }
 
   public static <T> Processor<T, T> buffer(final int size, final Duration timeout) {
     return new Buffer<>(size, timeout);
+  }
+
+  static <T> Processor<T, T> buffer(
+      final int size, final Duration timeout, final boolean internalMode) {
+    return new Buffer<>(size, timeout, internalMode);
   }
 
   protected boolean onNextAction(final T value) {

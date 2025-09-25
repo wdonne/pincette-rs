@@ -5,13 +5,13 @@ import static net.pincette.rs.Box.box;
 import static net.pincette.rs.Buffer.buffer;
 import static net.pincette.rs.Mapper.map;
 import static net.pincette.rs.Util.throwBackpressureViolation;
-import static net.pincette.rs.Util.trace;
 
 import java.util.concurrent.Flow.Processor;
 import java.util.concurrent.Flow.Publisher;
 import java.util.concurrent.Flow.Subscriber;
 import java.util.concurrent.Flow.Subscription;
 import java.util.function.Function;
+import java.util.function.Supplier;
 import java.util.logging.Logger;
 
 /**
@@ -56,13 +56,13 @@ public class Flatten<T> extends ProcessorBase<Publisher<T>, T> {
   }
 
   private void more() {
-    trace(LOGGER, () -> "subscription request");
+    trace(() -> "subscription request");
 
     dispatch(
         () -> {
           if (!completed) {
             if (subscription != null) {
-              trace(LOGGER, () -> "upstream request");
+              trace(() -> "upstream request");
               subscription.request(1);
             } else {
               pendingRequest = true;
@@ -75,7 +75,7 @@ public class Flatten<T> extends ProcessorBase<Publisher<T>, T> {
   public void onComplete() {
     dispatch(
         () -> {
-          trace(LOGGER, () -> "onComplete");
+          trace(() -> "onComplete");
           completed = true;
           monitor.complete();
         });
@@ -94,7 +94,7 @@ public class Flatten<T> extends ProcessorBase<Publisher<T>, T> {
 
     dispatch(
         () -> {
-          trace(LOGGER, () -> "onNext");
+          trace(() -> "onNext");
           pendingElement = true;
           publisher.subscribe(monitor);
         });
@@ -102,13 +102,13 @@ public class Flatten<T> extends ProcessorBase<Publisher<T>, T> {
 
   @Override
   public void onSubscribe(final Subscription subscription) {
-    trace(LOGGER, () -> "onSubscribe");
+    trace(() -> "onSubscribe");
     super.onSubscribe(subscription);
 
     dispatch(
         () -> {
           if (pendingRequest) {
-            trace(LOGGER, () -> "pending request");
+            trace(() -> "pending request");
             pendingRequest = false;
             dispatch(this::more);
           }
@@ -119,9 +119,13 @@ public class Flatten<T> extends ProcessorBase<Publisher<T>, T> {
   public void subscribe(final Subscriber<? super T> subscriber) {
     final Processor<T, T> buf = buffer(1);
 
-    trace(LOGGER, () -> "subscribe");
+    trace(() -> "subscribe");
     monitor.subscribe(buf);
     buf.subscribe(subscriber);
+  }
+
+  private void trace(final Supplier<String> message) {
+    Util.trace(LOGGER, this, message);
   }
 
   private class Monitor implements Processor<T, T> {
@@ -134,7 +138,7 @@ public class Flatten<T> extends ProcessorBase<Publisher<T>, T> {
     private void complete() {
       dispatch(
           () -> {
-            trace(LOGGER, () -> "monitor complete");
+            trace(() -> "monitor complete");
 
             if (completed && !pendingElement) {
               completeSubscriber();
@@ -143,7 +147,7 @@ public class Flatten<T> extends ProcessorBase<Publisher<T>, T> {
     }
 
     private void completeSubscriber() {
-      trace(LOGGER, () -> "monitor complete subscriber " + subscriber);
+      trace(() -> "monitor complete subscriber " + subscriber);
       subscriber.onComplete();
     }
 
@@ -161,7 +165,7 @@ public class Flatten<T> extends ProcessorBase<Publisher<T>, T> {
           () -> {
             subscription = null;
             completed = true;
-            trace(LOGGER, () -> "monitor onComplete");
+            trace(() -> "monitor onComplete");
 
             if (Flatten.this.completed && !pendingElement) {
               completeSubscriber();
@@ -178,7 +182,7 @@ public class Flatten<T> extends ProcessorBase<Publisher<T>, T> {
     public void onNext(final T value) {
       dispatch(
           () -> {
-            trace(LOGGER, () -> "monitor onNext " + value + " to subscriber " + subscriber);
+            trace(() -> "monitor onNext " + value + " to subscriber " + subscriber);
 
             if (requested == 0) {
               throwBackpressureViolation(this, subscription, requested);
@@ -192,13 +196,13 @@ public class Flatten<T> extends ProcessorBase<Publisher<T>, T> {
     public void onSubscribe(final Subscription subscription) {
       dispatch(
           () -> {
-            trace(LOGGER, () -> "monitor onSubscribe");
+            trace(() -> "monitor onSubscribe");
             completed = false;
             pendingElement = false;
             this.subscription = subscription;
 
             if (requested > 0) {
-              trace(LOGGER, () -> "monitor subscription request at onSubscribe");
+              trace(() -> "monitor subscription request at onSubscribe");
               more();
             }
           });
@@ -221,7 +225,7 @@ public class Flatten<T> extends ProcessorBase<Publisher<T>, T> {
               requested += n;
 
               if (subscription != null) {
-                trace(LOGGER, () -> "monitor subscription request");
+                trace(() -> "monitor subscription request");
                 more();
               } else if (!started) {
                 started = true;

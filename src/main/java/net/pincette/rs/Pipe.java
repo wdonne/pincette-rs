@@ -9,7 +9,7 @@ import java.util.concurrent.Flow.Processor;
  *
  * @param <T> the incoming value type of the first processor.
  * @param <R> the outgoing value type of the last processor.
- * @author Werner Donn\u00e9
+ * @author Werner Donné
  * @since 3.0
  */
 public class Pipe<T, R> extends Delegate<T, R> {

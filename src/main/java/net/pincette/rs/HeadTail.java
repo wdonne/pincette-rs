@@ -9,7 +9,7 @@ import java.util.function.Function;
  *
  * @param <T> the type of the incoming values.
  * @param <R> the type of the outgoing values.
- * @author Werner Donn\u00e9
+ * @author Werner Donné
  * @since 3.0
  */
 public class HeadTail<T, R> extends Mapper<T, R> {

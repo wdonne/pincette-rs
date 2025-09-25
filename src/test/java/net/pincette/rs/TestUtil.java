@@ -32,6 +32,7 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Flow.Processor;
 import java.util.concurrent.Flow.Publisher;
 import java.util.function.BiPredicate;
+import java.util.function.Predicate;
 import java.util.function.Supplier;
 import net.pincette.util.Util.GeneralException;
 
@@ -119,6 +120,20 @@ class TestUtil {
 
       if (withIter) {
         assertEquals(target, asListIter(publisher.get()));
+      }
+    }
+  }
+
+  static <T> void runTest(
+      final Predicate<List<T>> verify,
+      final Supplier<Publisher<T>> publisher,
+      final int times,
+      final boolean withIter) {
+    for (int i = 0; i < times; ++i) {
+      assertTrue(verify.test(asList(publisher.get())));
+
+      if (withIter) {
+        assertTrue(verify.test(asListIter(publisher.get())));
       }
     }
   }

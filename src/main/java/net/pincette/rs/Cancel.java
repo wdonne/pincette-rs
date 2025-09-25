@@ -1,11 +1,11 @@
 package net.pincette.rs;
 
 import static java.util.logging.Logger.getLogger;
-import static net.pincette.rs.Util.trace;
 
 import java.util.concurrent.Flow.Processor;
 import java.util.concurrent.Flow.Subscription;
 import java.util.function.Predicate;
+import java.util.function.Supplier;
 import java.util.logging.Logger;
 
 /**
@@ -43,16 +43,16 @@ public class Cancel<T> extends PassThrough<T> {
   public void onNext(final T value) {
     dispatch(
         () -> {
-          trace(LOGGER, () -> "onNext " + value);
+          trace(() -> "onNext " + value);
 
           if (!cancelled) {
             cancelled = shouldCancel.test(value);
-            trace(LOGGER, () -> "onNext " + value + " to subscriber " + subscriber);
+            trace(() -> "onNext " + value + " to subscriber " + subscriber);
             super.onNext(
                 value); // Do this first to preserve order because cancel may produce messages.
 
             if (cancelled) {
-              trace(LOGGER, () -> "cancel");
+              trace(() -> "cancel");
               subscription.cancel();
               onComplete();
             }
@@ -63,6 +63,10 @@ public class Cancel<T> extends PassThrough<T> {
   @Override
   public void onSubscribe(final Subscription subscription) {
     super.onSubscribe(new WrapSubscription(subscription));
+  }
+
+  private void trace(final Supplier<String> message) {
+    Util.trace(LOGGER, this, message);
   }
 
   private class WrapSubscription implements Subscription {

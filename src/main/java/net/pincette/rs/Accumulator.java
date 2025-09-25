@@ -16,7 +16,7 @@ import java.util.stream.Stream;
  * Accumulates a publisher and when that's done it calls the provided function. With the <code>get
  * </code> method you obtain the final result.
  *
- * @author Werner Donn\u00e9
+ * @author Werner Donné
  * @since 1.3
  */
 public class Accumulator<T, U> implements Subscriber<T> {

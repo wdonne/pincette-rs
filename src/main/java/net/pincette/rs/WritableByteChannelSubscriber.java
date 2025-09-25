@@ -11,7 +11,7 @@ import java.util.concurrent.Flow.Subscription;
 /**
  * Consumes a reactive stream of <code>ByteBuffer</code> and writes it to a channel.
  *
- * @author Werner Donn\u00e9
+ * @author Werner Donné
  * @since 3.0
  */
 public class WritableByteChannelSubscriber implements Subscriber<ByteBuffer> {

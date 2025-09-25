@@ -109,11 +109,10 @@ public abstract class ProcessorBase<T, R> implements Processor<T, R> {
 
     if (this.subscription != null) {
       cancel();
-      this.subscription = subscription;
-    } else {
-      this.subscription = subscription;
-      notifySubscriber();
     }
+
+    this.subscription = subscription;
+    notifySubscriber();
   }
 
   protected void setError(final boolean value) {

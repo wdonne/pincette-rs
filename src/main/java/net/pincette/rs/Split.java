@@ -7,7 +7,7 @@ import java.util.concurrent.Flow.Processor;
  * a shared thread.
  *
  * @param <T> the value type.
- * @author Werner Donn\u00e9
+ * @author Werner Donné
  * @since 3.0
  */
 public class Split<T> extends ProcessorBase<T, T> {

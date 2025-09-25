@@ -14,9 +14,9 @@ import java.util.concurrent.Flow.Processor;
 import java.util.function.Function;
 
 /**
- * When the down stream requests more messages the stream this indicates all messages it has
- * received were processed correctly. This is a moment to perform a commit with a function that
- * receives the list of uncommitted messages. This supports at least once semantics.
+ * When the down stream requests more messages this indicates all messages it has received were
+ * processed correctly. This is a moment to perform a commit with a function that receives the list
+ * of uncommitted messages. This supports at least once semantics.
  *
  * @param <T> the value type.
  * @author Werner Donné

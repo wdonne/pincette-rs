@@ -1,5 +1,7 @@
 package net.pincette.rs;
 
+import static java.util.logging.Logger.getLogger;
+
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Queue;
@@ -7,6 +9,9 @@ import java.util.UUID;
 import java.util.concurrent.Flow.Publisher;
 import java.util.concurrent.Flow.Subscriber;
 import java.util.concurrent.Flow.Subscription;
+import java.util.function.BiConsumer;
+import java.util.function.Supplier;
+import java.util.logging.Logger;
 import net.pincette.util.NotifyingDeque;
 
 /**
@@ -17,12 +22,30 @@ import net.pincette.util.NotifyingDeque;
  * @since 3.10.0
  */
 public class QueuePublisher<T> implements Publisher<T> {
+  private static final Logger LOGGER = getLogger(QueuePublisher.class.getName());
+
   private final Queue<T> queue = new NotifyingDeque<>(this::added, null);
   private boolean closed;
   private boolean completed;
   private final String key = UUID.randomUUID().toString();
+  private final BiConsumer<QueuePublisher<T>, Long> onDepleted;
   private long requested;
   private Subscriber<? super T> subscriber;
+
+  public QueuePublisher() {
+    this(null);
+  }
+
+  /**
+   * Creates a queue publisher with a function to signal the depletion of the queue.
+   *
+   * @param onDepleted the function that is called when the queue of the publisher is depleted while
+   *     there are pending requests.
+   * @since 3.11.0
+   */
+  public QueuePublisher(final BiConsumer<QueuePublisher<T>, Long> onDepleted) {
+    this.onDepleted = onDepleted;
+  }
 
   /**
    * Creates a queue publisher.
@@ -34,11 +57,26 @@ public class QueuePublisher<T> implements Publisher<T> {
     return new QueuePublisher<>();
   }
 
+  /**
+   * Creates a queue publisher with a function to signal the depletion of the queue.
+   *
+   * @param onDepleted the function that is called when the queue of the publisher is depleted while
+   *     there are pending requests.
+   * @return The publisher.
+   * @param <T> the value type.
+   * @since 3.11.0
+   */
+  public static <T> QueuePublisher<T> queuePublisher(
+      final BiConsumer<QueuePublisher<T>, Long> onDepleted) {
+    return new QueuePublisher<>(onDepleted);
+  }
+
   private void added(final Queue<T> queue) {
     if (closed) {
       throw new UnsupportedOperationException("The publisher is already closed.");
     }
 
+    trace(() -> "dispatch emit, added notification");
     dispatch(this::emit);
   }
 
@@ -58,6 +96,7 @@ public class QueuePublisher<T> implements Publisher<T> {
   }
 
   private void complete() {
+    trace(() -> "complete");
     completed = true;
     dispatch(subscriber::onComplete);
   }
@@ -80,12 +119,26 @@ public class QueuePublisher<T> implements Publisher<T> {
   }
 
   private void emit() {
+    trace(
+        () ->
+            "emit, completed: "
+                + completed
+                + ", requested: "
+                + requested
+                + ", queue: "
+                + queue.size());
+
     if (subscriber != null && !completed) {
       final List<T> elements = consume();
 
       if (!elements.isEmpty()) {
+        trace(() -> "Emit " + elements.size() + " items");
         dispatch(() -> elements.forEach(e -> subscriber.onNext(e)));
+      } else {
+        trace(() -> "No elements to emit");
       }
+
+      onDepleted();
 
       if (closed && queue.isEmpty()) {
         complete();
@@ -106,7 +159,30 @@ public class QueuePublisher<T> implements Publisher<T> {
     return closed;
   }
 
-  private void onError(final Throwable t) {
+  private void onDepleted() {
+    if (onDepleted != null) {
+      trace(() -> "dispatch onDepleted");
+
+      dispatch(
+          () -> {
+            if (requested > 0 && queue.isEmpty() && !closed) {
+              trace(() -> "onDepleted, requested: " + requested);
+              onDepleted.accept(this, requested);
+            } else {
+              trace(
+                  () ->
+                      "Not depleted, requested: "
+                          + requested
+                          + ", queue: "
+                          + queue.size()
+                          + ", closed: "
+                          + closed);
+            }
+          });
+    }
+  }
+
+  void onError(final Throwable t) {
     if (subscriber != null) {
       subscriber.onError(t);
     }
@@ -121,8 +197,13 @@ public class QueuePublisher<T> implements Publisher<T> {
     subscriber.onSubscribe(new Backpressure());
   }
 
+  private void trace(final Supplier<String> message) {
+    Util.trace(LOGGER, this, message);
+  }
+
   private class Backpressure implements Subscription {
     public void cancel() {
+      trace(() -> "cancel");
       queue.clear();
       close();
     }
@@ -134,6 +215,7 @@ public class QueuePublisher<T> implements Publisher<T> {
 
       dispatch(
           () -> {
+            trace(() -> "Requested: " + number);
             requested += number;
             emit();
           });

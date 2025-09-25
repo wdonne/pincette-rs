@@ -19,7 +19,7 @@ import java.util.concurrent.Flow.Subscription;
  * This is an input stream that can be used as a reactive streams subscriber. It complies with the
  * reactive backpressure mechanism.
  *
- * @author Werner Donn\u00e9
+ * @author Werner Donné
  * @since 1.0
  */
 public class InputStreamSubscriber extends InputStream implements Subscriber<ByteBuffer> {
@@ -88,10 +88,10 @@ public class InputStreamSubscriber extends InputStream implements Subscriber<Byt
 
     if (this.subscription != null) {
       subscription.cancel();
-    } else {
-      this.subscription = subscription;
-      subscription.request(1);
     }
+
+    this.subscription = subscription;
+    subscription.request(1);
   }
 
   private void park() {

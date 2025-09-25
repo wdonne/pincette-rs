@@ -12,7 +12,7 @@ import net.pincette.function.SideEffect;
  *
  * @param <T> the type of the incoming values.
  * @param <R> the type of the outgoing values.
- * @author Werner Donn\u00e9
+ * @author Werner Donné
  * @since 1.0
  */
 public class Mapper<T, R> extends ProcessorBase<T, R> {

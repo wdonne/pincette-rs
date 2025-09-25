@@ -6,7 +6,7 @@ import java.util.concurrent.Flow.Subscription;
  * This is for emitters that can't be controlled in any way. They can't be stopped and they don't
  * support back pressure.
  *
- * @author Werner Donn\u00e9
+ * @author Werner Donné
  * @since 1.0
  */
 public class NopSubscription implements Subscription {

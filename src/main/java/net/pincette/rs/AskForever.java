@@ -14,7 +14,7 @@ import java.util.concurrent.Flow.Subscription;
  * until the stream completes.
  *
  * @param <T> the value type.
- * @author Werner Donn\u00e9
+ * @author Werner Donné
  * @since 3.0
  */
 public class AskForever<T> extends ProcessorBase<T, T> {

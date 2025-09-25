@@ -456,6 +456,40 @@ public class Chain<T> {
   }
 
   /**
+   * Appends a sharded processor. It uses the standard Java <code>hashCode</code> method and a
+   * buffer size of 1000.
+   *
+   * @param processor the function that creates as many equal processors as there will be shards.
+   *     Each processor receives a portion of the traffic.
+   * @param numberOfShards the number of shards that will run in parallel.
+   * @since 3.11.0
+   */
+  public <R> Chain<R> sharded(final Supplier<Processor<T, R>> processor, final int numberOfShards) {
+    return map(Sharded.sharded(processor, numberOfShards));
+  }
+
+  /**
+   * Appends a sharded processor.
+   *
+   * @param processor the function that creates as many equal processors as there will be shards.
+   *     Each processor receives a portion of the traffic.
+   * @param numberOfShards the number of shards that will run in parallel.
+   * @param hashFunction the function that hashes the incoming elements. From the result the modulo
+   *     of the number of shards is taken to determine which shard will get the element. The
+   *     function must be consistent.
+   * @param bufferSize the upstream request size, which is also the amount of elements that may be
+   *     buffered in memory.
+   * @since 3.11.0
+   */
+  public <R> Chain<R> sharded(
+      final Supplier<Processor<T, R>> processor,
+      final int numberOfShards,
+      final Function<T, Integer> hashFunction,
+      final int bufferSize) {
+    return map(Sharded.sharded(processor, numberOfShards, hashFunction, bufferSize));
+  }
+
+  /**
    * Creates a sliding window over the received elements. Each emitted value is a list with a number
    * of elements that equals the window size, except for the last window, which may be smaller.
    *

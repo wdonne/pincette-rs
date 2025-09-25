@@ -160,16 +160,16 @@ public class LambdaSubscriber<T> implements Subscriber<T> {
 
     if (subscription != null) {
       subscription.cancel();
-    } else {
-      if (subscribe != null) {
-        tryToDoRethrow(() -> subscribe.accept(monitor));
-      }
+    }
 
-      subscription = s;
+    if (subscribe != null) {
+      tryToDoRethrow(() -> subscribe.accept(monitor));
+    }
 
-      if (!monitor.cancelled && !monitor.requested) {
-        s.request(1);
-      }
+    subscription = s;
+
+    if (!monitor.cancelled && !monitor.requested) {
+      s.request(1);
     }
   }
 
