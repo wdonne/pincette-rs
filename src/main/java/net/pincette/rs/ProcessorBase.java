@@ -1,9 +1,12 @@
 package net.pincette.rs;
 
+import static java.util.logging.Logger.getLogger;
+
 import java.util.UUID;
 import java.util.concurrent.Flow.Processor;
 import java.util.concurrent.Flow.Subscriber;
 import java.util.concurrent.Flow.Subscription;
+import java.util.logging.Logger;
 
 /**
  * A base class for reactive streams processors.
@@ -14,6 +17,8 @@ import java.util.concurrent.Flow.Subscription;
  * @since 3.0
  */
 public abstract class ProcessorBase<T, R> implements Processor<T, R> {
+  private static final Logger LOGGER = getLogger(ProcessorBase.class.getName());
+
   protected Subscriber<? super R> subscriber;
   protected Subscription subscription;
   private boolean cancelled;
@@ -93,6 +98,7 @@ public abstract class ProcessorBase<T, R> implements Processor<T, R> {
       throw new NullPointerException("Can't throw null.");
     }
 
+    LOGGER.severe(() -> onErrorMessage(t));
     setError(true);
 
     if (subscriber != null) {
@@ -100,6 +106,23 @@ public abstract class ProcessorBase<T, R> implements Processor<T, R> {
     } else {
       pendingException = t;
     }
+  }
+
+  private String onErrorMessage(final Throwable t) {
+    return this
+        + ": onError: "
+        + t
+        + "\ncancelled: "
+        + cancelled
+        + "\ncompleted: "
+        + completed
+        + "\nerror: "
+        + error
+        + "\npendingException: "
+        + pendingException
+        + "\nsubscriberNotified: "
+        + subscriberNotified
+        + "\n";
   }
 
   public void onSubscribe(final Subscription subscription) {

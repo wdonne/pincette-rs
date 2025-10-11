@@ -2,6 +2,7 @@ package net.pincette.rs;
 
 import static java.lang.Boolean.TRUE;
 import static java.util.concurrent.CompletableFuture.completedFuture;
+import static java.util.logging.Logger.getLogger;
 import static net.pincette.rs.Util.throwBackpressureViolation;
 
 import java.util.ArrayDeque;
@@ -12,6 +13,7 @@ import java.util.Optional;
 import java.util.concurrent.CompletionStage;
 import java.util.concurrent.Flow.Processor;
 import java.util.function.Function;
+import java.util.logging.Logger;
 
 /**
  * When the down stream requests more messages this indicates all messages it has received were
@@ -23,6 +25,8 @@ import java.util.function.Function;
  * @since 3.0
  */
 public class Commit<T> extends ProcessorBase<T, T> {
+  private static final Logger LOGGER = getLogger(Commit.class.getName());
+
   private final Function<List<T>, CompletionStage<Boolean>> fn;
   private final Deque<T> uncommitted = new ArrayDeque<>(1000);
   private boolean completed;
@@ -95,6 +99,25 @@ public class Commit<T> extends ProcessorBase<T, T> {
             sendComplete();
           }
         });
+  }
+
+  @Override
+  public void onError(Throwable t) {
+    super.onError(t);
+    LOGGER.severe(() -> onErrorMessage(t));
+  }
+
+  private String onErrorMessage(final Throwable t) {
+    return this
+        + ": onError: "
+        + t
+        + "\nuncommitted size: "
+        + uncommitted.size()
+        + "\ncompleted: "
+        + completed
+        + "\nrequested: "
+        + requested
+        + "\n";
   }
 
   @Override

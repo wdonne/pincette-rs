@@ -83,7 +83,21 @@ public class Flatten<T> extends ProcessorBase<Publisher<T>, T> {
 
   @Override
   public void onError(Throwable t) {
+    LOGGER.severe(() -> onErrorMessage(t));
     monitor.onError(t);
+  }
+
+  private String onErrorMessage(final Throwable t) {
+    return this
+        + ": onError: "
+        + t
+        + "\ncompleted: "
+        + completed
+        + "\npendingElement: "
+        + pendingElement
+        + "\npendingRequest: "
+        + pendingRequest
+        + "\n";
   }
 
   @Override
@@ -175,8 +189,22 @@ public class Flatten<T> extends ProcessorBase<Publisher<T>, T> {
           });
     }
 
-    public void onError(final Throwable throwable) {
-      subscriber.onError(throwable);
+    public void onError(final Throwable t) {
+      LOGGER.severe(() -> onErrorMessage(t));
+      subscriber.onError(t);
+    }
+
+    private String onErrorMessage(final Throwable t) {
+      return this
+          + ": onError: "
+          + t
+          + "\ncompleted: "
+          + completed
+          + "\nrequested: "
+          + requested
+          + "\nstarted: "
+          + started
+          + "\n";
     }
 
     public void onNext(final T value) {

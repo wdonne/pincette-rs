@@ -183,9 +183,26 @@ public class QueuePublisher<T> implements Publisher<T> {
   }
 
   void onError(final Throwable t) {
+    LOGGER.severe(() -> onErrorMessage(t));
+
     if (subscriber != null) {
       subscriber.onError(t);
     }
+  }
+
+  private String onErrorMessage(final Throwable t) {
+    return this
+        + ": onError: "
+        + t
+        + "\nqueue size: "
+        + queue.size()
+        + "\nclosed: "
+        + closed
+        + "\ncompleted: "
+        + completed
+        + "\nrequested: "
+        + requested
+        + "\n";
   }
 
   public void subscribe(final Subscriber<? super T> subscriber) {

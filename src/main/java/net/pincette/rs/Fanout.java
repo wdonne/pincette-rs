@@ -1,6 +1,8 @@
 package net.pincette.rs;
 
 import static java.util.Arrays.asList;
+import static java.util.logging.Logger.getLogger;
+import static java.util.stream.Collectors.joining;
 import static java.util.stream.Stream.concat;
 import static java.util.stream.Stream.empty;
 import static net.pincette.rs.Util.throwBackpressureViolation;
@@ -12,9 +14,11 @@ import java.util.Optional;
 import java.util.UUID;
 import java.util.concurrent.Flow.Subscriber;
 import java.util.concurrent.Flow.Subscription;
+import java.util.function.Consumer;
 import java.util.function.Function;
 import java.util.function.Supplier;
 import java.util.function.UnaryOperator;
+import java.util.logging.Logger;
 import java.util.stream.Stream;
 
 /**
@@ -26,10 +30,13 @@ import java.util.stream.Stream;
  * @since 1.6
  */
 public class Fanout<T> implements Subscriber<T> {
+  private static final Logger LOGGER = getLogger(Fanout.class.getName());
+
   private final UnaryOperator<T> duplicator;
   private final String key = UUID.randomUUID().toString();
   private final List<Backpressure> subscriptions;
   private Subscription subscription;
+  private final Consumer<Supplier<String>> tracer;
 
   /**
    * Creates a fanout subscriber.
@@ -54,6 +61,14 @@ public class Fanout<T> implements Subscriber<T> {
    */
   public Fanout(
       final List<? extends Subscriber<T>> subscribers, final UnaryOperator<T> duplicator) {
+    this(subscribers, duplicator, false);
+  }
+
+  Fanout(
+      final List<? extends Subscriber<T>> subscribers,
+      final UnaryOperator<T> duplicator,
+      final boolean traceSpecific) {
+    tracer = Util.tracer(LOGGER, this, traceSpecific);
     this.subscriptions = subscribers.stream().map(s -> new Backpressure(s, true)).toList();
     this.duplicator = duplicator;
   }
@@ -86,6 +101,14 @@ public class Fanout<T> implements Subscriber<T> {
       final List<? extends Subscriber<T>> subscribers,
       final List<Boolean> takeIntoAccountCancel,
       final UnaryOperator<T> duplicator) {
+    this(subscribers, takeIntoAccountCancel, duplicator, false);
+  }
+
+  Fanout(
+      final List<? extends Subscriber<T>> subscribers,
+      final List<Boolean> takeIntoAccountCancel,
+      final UnaryOperator<T> duplicator,
+      final boolean traceSpecific) {
     if (subscribers.size() != takeIntoAccountCancel.size()) {
       throw new IllegalArgumentException(
           "The size of subscribers and takeIntoAccountCancel should be the same.");
@@ -96,6 +119,7 @@ public class Fanout<T> implements Subscriber<T> {
             .map(pair -> new Backpressure(pair.first, pair.second))
             .toList();
     this.duplicator = duplicator;
+    tracer = Util.tracer(LOGGER, this, traceSpecific);
   }
 
   /**
@@ -186,7 +210,16 @@ public class Fanout<T> implements Subscriber<T> {
   }
 
   public void onError(final Throwable t) {
+    LOGGER.severe(() -> onErrorMessage(t));
     subscriptions.forEach(s -> s.subscriber.onError(t));
+  }
+
+  private String onErrorMessage(final Throwable t) {
+    return this
+        + ": onError: "
+        + t
+        + "\n"
+        + subscriptions.stream().map(Backpressure::onErrorMessage).collect(joining(" \n"));
   }
 
   public void onNext(final T value) {
@@ -206,8 +239,13 @@ public class Fanout<T> implements Subscriber<T> {
       subscription.cancel();
     }
 
+    tracer.accept(() -> "onSubscribe: " + subscription);
     this.subscription = subscription;
-    subscriptions.forEach(s -> s.subscriber.onSubscribe(s));
+    subscriptions.forEach(
+        s -> {
+          tracer.accept(() -> s.subscriber + ": onSubscribe");
+          s.subscriber.onSubscribe(s);
+        });
   }
 
   private void sendValues(final T value) {
@@ -259,13 +297,27 @@ public class Fanout<T> implements Subscriber<T> {
     }
 
     private void more(final long n) {
+      tracer.accept(() -> "request: " + n);
       subscription.request(n);
+    }
+
+    private String onErrorMessage() {
+      return this
+          + ": \ncancelled: "
+          + cancelled
+          + "\ncommonRequested: "
+          + commonRequested
+          + "\nrequested: "
+          + requested
+          + "\n";
     }
 
     public void request(final long number) {
       if (number <= 0) {
         throw new IllegalArgumentException("A request must be strictly positive.");
       }
+
+      tracer.accept(() -> this + ": dispatch request " + number);
 
       dispatch(
           () -> {
@@ -287,6 +339,7 @@ public class Fanout<T> implements Subscriber<T> {
               throwBackpressureViolation(this, subscription, requested);
             }
 
+            tracer.accept(() -> this + ": onNext: " + value);
             subscriber.onNext(value);
           });
     }

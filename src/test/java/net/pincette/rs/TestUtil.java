@@ -15,6 +15,7 @@ import static net.pincette.rs.Util.asList;
 import static net.pincette.rs.Util.iterate;
 import static net.pincette.rs.Util.onComplete;
 import static net.pincette.rs.WritableByteChannelSubscriber.writableByteChannel;
+import static net.pincette.util.StreamUtil.rangeExclusive;
 import static net.pincette.util.StreamUtil.stream;
 import static net.pincette.util.Util.tryToDoRethrow;
 import static net.pincette.util.Util.tryToGetRethrow;
@@ -26,7 +27,6 @@ import java.io.File;
 import java.io.FileInputStream;
 import java.io.FileOutputStream;
 import java.nio.ByteBuffer;
-import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Flow.Processor;
@@ -139,12 +139,6 @@ class TestUtil {
   }
 
   static List<Integer> values(final int from, final int toExclusive) {
-    final List<Integer> result = new ArrayList<>(toExclusive - from);
-
-    for (int i = from; i < toExclusive; ++i) {
-      result.add(i);
-    }
-
-    return result;
+    return rangeExclusive(from, toExclusive).toList();
   }
 }

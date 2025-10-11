@@ -11,6 +11,7 @@ import java.util.function.Consumer;
 import java.util.function.Function;
 import java.util.function.Predicate;
 import java.util.function.Supplier;
+import java.util.function.ToIntFunction;
 
 /**
  * Chains processors after the initial publisher.
@@ -484,7 +485,7 @@ public class Chain<T> {
   public <R> Chain<R> sharded(
       final Supplier<Processor<T, R>> processor,
       final int numberOfShards,
-      final Function<T, Integer> hashFunction,
+      final ToIntFunction<T> hashFunction,
       final int bufferSize) {
     return map(Sharded.sharded(processor, numberOfShards, hashFunction, bufferSize));
   }

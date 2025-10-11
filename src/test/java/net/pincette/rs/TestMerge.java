@@ -13,6 +13,7 @@ import static net.pincette.rs.TestUtil.values;
 import static net.pincette.rs.Util.LOGGER;
 import static net.pincette.rs.Util.asList;
 import static net.pincette.rs.Util.subscribe;
+import static net.pincette.rs.Util.throttle;
 import static net.pincette.util.Collections.concat;
 import static net.pincette.util.Collections.list;
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -101,7 +102,7 @@ class TestMerge {
         values,
         () ->
             subscribe(
-                Merge.of(of(values), stall),
+                Merge.of(subscribe(of(values), mapAsync(v -> supplyAsync(() -> v))), stall),
                 probe(
                     n -> {},
                     v -> {
@@ -110,5 +111,18 @@ class TestMerge {
                       }
                     })),
         1);
+  }
+
+  @Test
+  @DisplayName("merge6")
+  void merge6() {
+    final List<Integer> values1 = values(0, 100);
+    final List<Integer> values2 = values(0, 100);
+    final Supplier<Publisher<Integer>> processor1 =
+        () -> subscribe(of(values1), box(mapAsync(v -> supplyAsync(() -> v)), throttle(20)));
+    final Supplier<Publisher<Integer>> processor2 =
+        () -> subscribe(of(values2), box(mapAsync(v -> supplyAsync(() -> v)), throttle(10)));
+
+    runTest(sort(concat(values1, values2)), () -> Merge.of(processor1.get(), processor2.get()), 1);
   }
 }

@@ -279,11 +279,44 @@ public abstract class Buffered<T, R> extends ProcessorBase<T, R> {
       throw new NullPointerException("Can't throw null.");
     }
 
+    LOGGER.severe(() -> onErrorMessage(t));
+
     dispatch(
         () -> {
           setError(true);
           subscriber.onError(t);
         });
+  }
+
+  private String onErrorMessage(final Throwable t) {
+    return this
+        + ": onError: "
+        + t
+        + "\nbuf size: "
+        + buf.size()
+        + "\ninternalMode: "
+        + internalMode
+        + "\nrequestSize:"
+        + requestSize
+        + "\ntimeout: "
+        + timeout
+        + "\ncancelled: "
+        + cancelled
+        + "\ncompleted: "
+        + completed
+        + "\ncompletedSent: "
+        + completedSent
+        + "\nlastRequested: "
+        + lastRequested
+        + "\nreceived: "
+        + received
+        + "\nrequested: "
+        + requested
+        + "\nrequestedUpstream: "
+        + requestedUpstream
+        + "\nstarted: "
+        + started
+        + "\n";
   }
 
   @Override

@@ -1,6 +1,7 @@
 package net.pincette.rs;
 
 import static java.util.Optional.ofNullable;
+import static java.util.logging.Logger.getLogger;
 import static net.pincette.util.ScheduledCompletionStage.runAsyncAfter;
 import static net.pincette.util.StreamUtil.generate;
 
@@ -11,6 +12,7 @@ import java.util.LinkedList;
 import java.util.List;
 import java.util.Optional;
 import java.util.concurrent.Flow.Processor;
+import java.util.logging.Logger;
 
 /**
  * Buffers a number of values. It always requests the number of values from the publisher that
@@ -22,6 +24,8 @@ import java.util.concurrent.Flow.Processor;
  * @author Werner Donné
  */
 public class Per<T> extends Buffered<T, List<T>> {
+  private static final Logger LOGGER = getLogger(Per.class.getName());
+
   private final Deque<T> buf = new LinkedList<>();
   private final int size;
   private final Duration timeout;
@@ -112,6 +116,27 @@ public class Per<T> extends Buffered<T, List<T>> {
   @Override
   protected void last() {
     consumeBuffer(true).ifPresent(this::addValues);
+  }
+
+  @Override
+  public void onError(final Throwable t) {
+    LOGGER.severe(() -> onErrorMessage(t));
+    super.onError(t);
+  }
+
+  private String onErrorMessage(final Throwable t) {
+    return this
+        + ": onError: "
+        + t
+        + "\nbuf size: "
+        + buf.size()
+        + "\nsize: "
+        + size
+        + "\ntimeout: "
+        + timeout
+        + "\ntimerOn: "
+        + timerOn
+        + "\n";
   }
 
   public boolean onNextAction(final T value) {

@@ -1,6 +1,7 @@
 package net.pincette.rs;
 
 import static java.lang.Integer.toHexString;
+import static java.lang.Math.abs;
 import static java.lang.Math.min;
 import static java.time.Duration.between;
 import static java.time.Instant.now;
@@ -16,6 +17,7 @@ import static net.pincette.rs.Buffer.buffer;
 import static net.pincette.rs.Chain.with;
 import static net.pincette.rs.Combine.combine;
 import static net.pincette.rs.Encode.encode;
+import static net.pincette.rs.Filter.filter;
 import static net.pincette.rs.LambdaSubscriber.lambdaSubscriber;
 import static net.pincette.rs.Mapper.map;
 import static net.pincette.rs.NotFilter.notFilter;
@@ -54,6 +56,7 @@ import java.util.function.BiFunction;
 import java.util.function.Consumer;
 import java.util.function.Function;
 import java.util.function.Supplier;
+import java.util.function.ToIntFunction;
 import java.util.function.UnaryOperator;
 import java.util.logging.Logger;
 import java.util.zip.Deflater;
@@ -463,6 +466,10 @@ public class Util {
     return encode(Inflate.inflate(inflater));
   }
 
+  static void info(final Logger logger, final Object subject, final Supplier<String> message) {
+    logger.info(traceMessage(logger, subject, message));
+  }
+
   /**
    * Returns a blocking <code>Iterable</code> with a request size of 100.
    *
@@ -618,6 +625,19 @@ public class Util {
     return probe(n -> {}, v -> tryToDoRethrow(() -> consumer.accept(v)));
   }
 
+  /**
+   * Fans out to the given processors and merges them to down stream.
+   *
+   * @param processors the processors.
+   * @return The processor that encapsulates the parallel processors.
+   * @param <T> the incoming value type.
+   * @param <R> the outgoing value type.
+   * @since 3.11.1
+   */
+  public static <T, R> Processor<T, R> parallelProcessors(final List<Processor<T, R>> processors) {
+    return combine(Fanout.of(processors), Merge.of(processors));
+  }
+
   static void parking(final Object blocker, final long timeout) {
     if (timeout != -1) {
       parkNanos(blocker, timeout * 1000);
@@ -632,7 +652,7 @@ public class Util {
    *
    * @param processor the given processor.
    * @param <T> the incoming value type.
-   * @param <R> theo outgoing value type.
+   * @param <R> the outgoing value type.
    * @return The given processor as a subscriber.
    * @since 3.0
    */
@@ -701,6 +721,20 @@ public class Util {
             (m1, m2) -> m1);
   }
 
+  public static <T, R> Processor<T, R> sharded(
+      final Supplier<Processor<T, R>> processor,
+      final int numberOfShards,
+      final ToIntFunction<T> hashFunction) {
+    return parallelProcessors(
+        rangeExclusive(0, numberOfShards)
+            .map(
+                i ->
+                    box(
+                        filter(m -> abs(hashFunction.applyAsInt(m) % numberOfShards) == i),
+                        processor.get()))
+            .toList());
+  }
+
   /**
    * Subscribes <code>processor</code> to <code>publisher</code> and returns the processor as a
    * publisher.
@@ -755,8 +789,19 @@ public class Util {
   }
 
   static void trace(final Logger logger, final Object subject, final Supplier<String> message) {
-    logger.finest(
-        () -> logger.getName() + ": " + toHexString(subject.hashCode()) + ": " + message.get());
+    logger.finest(traceMessage(logger, subject, message));
+  }
+
+  static Supplier<String> traceMessage(
+      final Logger logger, final Object subject, final Supplier<String> message) {
+    return () -> logger.getName() + ": " + toHexString(subject.hashCode()) + ": " + message.get();
+  }
+
+  static Consumer<Supplier<String>> tracer(
+      final Logger logger, final Object subject, final boolean traceSpecific) {
+    return traceSpecific
+        ? message -> info(logger, subject, message)
+        : message -> trace(logger, subject, message);
   }
 
   public static <T, R> R transform(final Processor<T, R> processor, final T value) {

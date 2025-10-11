@@ -9,14 +9,17 @@ import static net.pincette.rs.Box.box;
 import static net.pincette.rs.Chain.with;
 import static net.pincette.rs.FlattenList.flattenList;
 import static net.pincette.rs.Mapper.map;
+import static net.pincette.rs.PassThrough.passThrough;
 import static net.pincette.rs.Source.of;
 import static net.pincette.rs.TestUtil.initLogging;
 import static net.pincette.rs.TestUtil.runTest;
 import static net.pincette.rs.TestUtil.values;
 import static net.pincette.rs.Util.generate;
 import static net.pincette.rs.Util.join;
+import static net.pincette.rs.Util.parallelProcessors;
 import static net.pincette.util.Collections.list;
 import static net.pincette.util.ScheduledCompletionStage.supplyAsyncAfter;
+import static net.pincette.util.StreamUtil.rangeExclusive;
 import static net.pincette.util.Util.tryToDoRethrow;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
@@ -570,6 +573,31 @@ class TestChain {
   @DisplayName("chain notFilter")
   void notFilter() {
     runTest(list(1, 3), () -> with(of(list(1, 2, 3, 4))).notFilter(v -> v % 2 == 0).get());
+  }
+
+  @Test
+  @DisplayName("chain parallel of parallel")
+  void parallelOfParallel() {
+    runTest(
+        result ->
+            result.stream()
+                .sorted()
+                .toList()
+                .equals(
+                    rangeExclusive(0, 4).flatMap(i -> values(0, 10).stream()).sorted().toList()),
+        () ->
+            with(of(values(0, 10)))
+                .map(
+                    parallelProcessors(
+                        rangeExclusive(0, 2)
+                            .map(
+                                i ->
+                                    parallelProcessors(
+                                        list(PassThrough.<Integer>passThrough(), passThrough())))
+                            .toList()))
+                .get(),
+        1000,
+        true);
   }
 
   @Test

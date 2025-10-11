@@ -40,6 +40,16 @@ public class Cancel<T> extends PassThrough<T> {
   }
 
   @Override
+  public void onError(final Throwable t) {
+    super.onError(t);
+    LOGGER.severe(() -> onErrorMessage(t));
+  }
+
+  private String onErrorMessage(final Throwable t) {
+    return this + ": onError: " + t + "\ncancelled: " + cancelled + "\n";
+  }
+
+  @Override
   public void onNext(final T value) {
     dispatch(
         () -> {

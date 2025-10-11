@@ -13,7 +13,7 @@ import java.nio.ByteBuffer;
 import java.util.concurrent.Flow.Processor;
 
 /**
- * Base84 processors.
+ * Base64 processors.
  *
  * @author Werner Donné
  * @since 3.0
