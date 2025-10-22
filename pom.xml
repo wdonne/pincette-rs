@@ -6,7 +6,7 @@
 
   <groupId>net.pincette</groupId>
   <artifactId>pincette-rs</artifactId>
-  <version>3.11.1</version>
+  <version>3.11.2</version>
   <packaging>jar</packaging>
   <name>pincette-rs</name>
   <description>Pincette Reactive Streams</description>
@@ -97,7 +97,7 @@
             </additionalJOption>
           </additionalJOptions>
           <links>
-            <link>https://docs.oracle.com/en/java/javase/11/docs/api/</link>
+            <link>https://docs.oracle.com/en/java/javase/21/docs/api/</link>
             <link>https://www.javadoc.io/doc/net.pincette/pincette-common/latest/</link>
           </links>
           <sourceFileExcludes>

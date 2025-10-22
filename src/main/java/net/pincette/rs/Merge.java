@@ -2,29 +2,16 @@ package net.pincette.rs;
 
 import static java.util.Arrays.asList;
 import static java.util.logging.Logger.getLogger;
-import static net.pincette.rs.Box.box;
-import static net.pincette.rs.Buffer.buffer;
-import static net.pincette.rs.Probe.probe;
-import static net.pincette.rs.Util.roundRobinMergeRequest;
-import static net.pincette.rs.Util.throwBackpressureViolation;
-import static net.pincette.util.StreamUtil.rangeExclusive;
-import static net.pincette.util.StreamUtil.zip;
+import static net.pincette.rs.QueuePublisher.queuePublisher;
 
-import java.util.Comparator;
 import java.util.List;
-import java.util.Map;
-import java.util.Optional;
 import java.util.UUID;
-import java.util.concurrent.Flow.Processor;
 import java.util.concurrent.Flow.Publisher;
 import java.util.concurrent.Flow.Subscriber;
 import java.util.concurrent.Flow.Subscription;
 import java.util.function.Consumer;
-import java.util.function.Function;
-import java.util.function.Predicate;
 import java.util.function.Supplier;
 import java.util.logging.Logger;
-import net.pincette.util.Pair;
 
 /**
  * A publisher that emits everything that the given publishers emit.
@@ -36,14 +23,9 @@ import net.pincette.util.Pair;
 public class Merge<T> implements Publisher<T> {
   private static final Logger LOGGER = getLogger(Merge.class.getName());
 
-  private Backpressure backpressure;
   private final List<BranchSubscriber> branchSubscribers;
-  private boolean completed;
-  private final Function<Long, Map<Integer, Long>> distributeRequests;
   private final String key = UUID.randomUUID().toString();
-  private long requestSequence;
-  private long requested;
-  private Subscriber<? super T> subscriber;
+  private final QueuePublisher<T> publisher = queuePublisher((p, n) -> more());
   private final Consumer<Supplier<String>> tracer;
 
   /**
@@ -52,31 +34,12 @@ public class Merge<T> implements Publisher<T> {
    * @param publishers the publishers of which all events are forwarded.
    */
   public Merge(final List<? extends Publisher<T>> publishers) {
-    this(publishers, null, false);
+    this(publishers, false);
   }
 
-  /**
-   * Creates a merge publisher.
-   *
-   * @param publishers the publishers of which all events are forwarded.
-   * @param distributeRequests the function that says how many requests should go to which publisher
-   *     position. By default, the publishers that have caught up are selected and if there aren't
-   *     any, the ones that are behind are selected.
-   * @since 3.11.0
-   */
-  public Merge(
-      final List<? extends Publisher<T>> publishers,
-      final Function<Long, Map<Integer, Long>> distributeRequests) {
-    this(publishers, distributeRequests, false);
-  }
-
-  Merge(
-      final List<? extends Publisher<T>> publishers,
-      final Function<Long, Map<Integer, Long>> distributeRequests,
-      final boolean traceSpecific) {
+  Merge(final List<? extends Publisher<T>> publishers, final boolean traceSpecific) {
     tracer = Util.tracer(LOGGER, this, traceSpecific);
     branchSubscribers = publishers.stream().map(this::branchSubscriber).toList();
-    this.distributeRequests = distributeRequests;
   }
 
   /**
@@ -102,14 +65,6 @@ public class Merge<T> implements Publisher<T> {
     return new Merge<>(asList(publishers));
   }
 
-  private boolean allSubscriptions() {
-    return branchSubscribers.stream().allMatch(s -> s.subscription != null);
-  }
-
-  private List<Integer> behind() {
-    return selectSubscribers(s -> !s.complete && s.received < s.requested);
-  }
-
   private BranchSubscriber branchSubscriber(final Publisher<T> publisher) {
     final BranchSubscriber s = new BranchSubscriber();
 
@@ -119,150 +74,17 @@ public class Merge<T> implements Publisher<T> {
     return s;
   }
 
-  private List<Integer> candidates() {
-    return Optional.of(caughtUp()).filter(l -> !l.isEmpty()).orElseGet(this::behind);
-  }
-
-  private List<Integer> caughtUp() {
-    return selectSubscribers(s -> !s.complete && s.received == s.requested);
-  }
-
-  private void dispatch(final Runnable action) {
-    Serializer.dispatch(action::run, this::onError, key);
-  }
-
-  private Comparator<Pair<Integer, BranchSubscriber>> fromMostToLeastCaughtUp() {
-    return Comparator.<Pair<Integer, BranchSubscriber>, Long>comparing(
-            pair -> pair.second.requested - pair.second.received)
-        .thenComparing(pair -> pair.second.sequence);
-  }
-
-  private void notifySubscriber() {
-    if (subscriber != null && allSubscriptions()) {
-      backpressure =
-          new Backpressure(
-              distributeRequests != null ? distributeRequests : this::requestCandidates);
-      tracer.accept(() -> subscriber + ": onSubscribe: " + backpressure);
-      subscriber.onSubscribe(backpressure);
-    }
-  }
-
-  private void onError(final Throwable t) {
-    LOGGER.severe(() -> onErrorMessage(t));
-
-    if (subscriber != null) {
-      subscriber.onError(t);
-    }
-  }
-
-  private String onErrorMessage(final Throwable t) {
-    return this
-        + ": onError: "
-        + t
-        + "\ncompleted: "
-        + completed
-        + "\nrequestSequence: "
-        + requestSequence
-        + "\nrequested: "
-        + requested
-        + "\n";
-  }
-
-  private Map<Integer, Long> requestCandidates(final long request) {
-    return roundRobinMergeRequest(candidates(), request);
-  }
-
-  private void requestExtra() {
-    tracer.accept(() -> "request extra: " + requested);
-    backpressure.requestBranches(requested);
-  }
-
-  private List<Integer> selectSubscribers(final Predicate<BranchSubscriber> filter) {
-    return zip(rangeExclusive(0, branchSubscribers.size()), branchSubscribers.stream())
-        .filter(pair -> filter.test(pair.second))
-        .sorted(fromMostToLeastCaughtUp())
-        .map(pair -> pair.first)
-        .toList();
+  private void more() {
+    branchSubscribers.stream().filter(s -> !s.complete).forEach(BranchSubscriber::more);
   }
 
   public void subscribe(final Subscriber<? super T> subscriber) {
-    // The buffer makes sure all branches will be triggered. The buffer keeps it going because
-    // one of the branches may stall and then the total requested amount would never be reached,
-    // in which case the buffer wouldn't ask for more.
-    final Processor<T, T> buffer =
-        box(
-            probe(
-                n -> tracer.accept(() -> "buffer requested: " + n),
-                v ->
-                    dispatch(
-                        () -> {
-                          tracer.accept(() -> "merge received: " + v);
-
-                          if (--requested > 0) {
-                            requestExtra();
-                          }
-                        })),
-            buffer(branchSubscribers.size(), null, true));
-
-    this.subscriber = buffer;
-    buffer.subscribe(subscriber);
-    notifySubscriber();
-  }
-
-  private class Backpressure implements Subscription {
-    private final Function<Long, Map<Integer, Long>> distributeRequests;
-
-    private Backpressure(final Function<Long, Map<Integer, Long>> distributeRequests) {
-      this.distributeRequests = distributeRequests;
-    }
-
-    public void cancel() {
-      branchSubscribers.forEach(b -> b.subscription.cancel());
-    }
-
-    public void request(final long n) {
-      if (n <= 0) {
-        throw new IllegalArgumentException("A request must be strictly positive.");
-      }
-
-      tracer.accept(() -> "dispatch request: " + n);
-
-      dispatch(
-          () -> {
-            if (!completed) {
-              tracer.accept(() -> "request branches: " + n);
-              requested += n;
-              requestBranches(n);
-            }
-          });
-    }
-
-    private void requestBranch(final BranchSubscriber s, final long request) {
-      dispatch(
-          () -> {
-            tracer.accept(() -> "branch request: " + request + " for subscriber " + s);
-            s.requested += request;
-            s.subscription.request(request);
-            s.sequence = ++requestSequence;
-          });
-    }
-
-    private void requestBranches(final long request) {
-      requestCandidates(distributeRequests.apply(request));
-    }
-
-    private void requestCandidates(final Map<Integer, Long> candidates) {
-      candidates.entrySet().stream()
-          .filter(e -> e.getValue() > 0)
-          .forEach(e -> requestBranch(branchSubscribers.get(e.getKey()), e.getValue()));
-    }
+    publisher.subscribe(subscriber);
   }
 
   private class BranchSubscriber implements Subscriber<T> {
     private boolean complete;
-    private long received;
-    private long requested;
-    private long sequence;
+    private long pendingRequests;
     private Subscription subscription;
 
     private boolean allCompleted() {
@@ -276,13 +98,38 @@ public class Merge<T> implements Publisher<T> {
           .forEach(Subscription::cancel);
     }
 
+    private void closeQueue() {
+      dispatch(
+          () -> {
+            if (!publisher.isClosed()) {
+              tracer.accept(() -> "Close queue " + this);
+              publisher.close();
+            }
+          });
+    }
+
     private void complete() {
       dispatch(
           () -> {
             complete = true;
 
             if (allCompleted()) {
-              sendComplete();
+              closeQueue();
+            }
+          });
+    }
+
+    private void dispatch(final Runnable action) {
+      Serializer.dispatch(action::run, this::onError, key);
+    }
+
+    private void more() {
+      dispatch(
+          () -> {
+            if (subscription != null) {
+              subscription.request(1);
+            } else {
+              ++pendingRequests;
             }
           });
     }
@@ -294,45 +141,19 @@ public class Merge<T> implements Publisher<T> {
 
     public void onError(final Throwable t) {
       LOGGER.severe(() -> onErrorMessage(t));
-      subscriber.onError(t);
+      publisher.onError(t);
       cancelOthers();
     }
 
     private String onErrorMessage(final Throwable t) {
-      return this
-          + ": onError: "
-          + t
-          + "\ncomplete: "
-          + complete
-          + "\nreceived: "
-          + received
-          + "\nrequested: "
-          + requested
-          + "\nsequence: "
-          + sequence
-          + "\n";
+      return this + ": onError: " + t + "\ncomplete: " + complete + "\n";
     }
 
     public void onNext(final T item) {
       dispatch(
           () -> {
-            tracer.accept(
-                () ->
-                    "Send onNext to subscriber "
-                        + this
-                        + ": "
-                        + item
-                        + ", received: "
-                        + received
-                        + ", requested: "
-                        + requested);
-
-            if (received == requested) {
-              throwBackpressureViolation(this, subscription, requested);
-            }
-
-            ++received;
-            subscriber.onNext(item);
+            tracer.accept(() -> "Add onNext to queue " + this + ": " + item);
+            publisher.getQueue().add(item);
           });
     }
 
@@ -345,18 +166,14 @@ public class Merge<T> implements Publisher<T> {
         subscription.cancel();
       }
 
-      this.subscription = subscription;
       tracer.accept(() -> this + ": onSubscribe: " + subscription);
-      notifySubscriber();
-    }
+      this.subscription = subscription;
 
-    private void sendComplete() {
       dispatch(
           () -> {
-            if (!completed) {
-              completed = true;
-              tracer.accept(() -> "Send onComplete to subscriber " + this);
-              subscriber.onComplete();
+            if (pendingRequests > 0) {
+              subscription.request(pendingRequests);
+              pendingRequests = 0;
             }
           });
     }

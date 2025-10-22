@@ -596,7 +596,7 @@ class TestChain {
                                         list(PassThrough.<Integer>passThrough(), passThrough())))
                             .toList()))
                 .get(),
-        1000,
+        10000,
         true);
   }
 
