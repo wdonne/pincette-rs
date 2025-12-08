@@ -152,8 +152,10 @@ public class Merge<T> implements Publisher<T> {
     public void onNext(final T item) {
       dispatch(
           () -> {
-            tracer.accept(() -> "Add onNext to queue " + this + ": " + item);
-            publisher.getQueue().add(item);
+            if (!publisher.isClosed()) {
+              tracer.accept(() -> "Add onNext to queue " + this + ": " + item);
+              publisher.getQueue().add(item);
+            }
           });
     }
 
