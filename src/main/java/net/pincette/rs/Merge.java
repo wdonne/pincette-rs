@@ -1,9 +1,12 @@
 package net.pincette.rs;
 
+import static java.time.Duration.ofMillis;
 import static java.util.Arrays.asList;
 import static java.util.logging.Logger.getLogger;
+import static net.pincette.rs.Chain.with;
 import static net.pincette.rs.QueuePublisher.queuePublisher;
 
+import java.time.Duration;
 import java.util.List;
 import java.util.UUID;
 import java.util.concurrent.Flow.Publisher;
@@ -21,7 +24,9 @@ import java.util.logging.Logger;
  * @since 3.0
  */
 public class Merge<T> implements Publisher<T> {
+  private static final int BATCH_SIZE = 100;
   private static final Logger LOGGER = getLogger(Merge.class.getName());
+  private static final Duration TIMEOUT = ofMillis(50);
 
   private final List<BranchSubscriber> branchSubscribers;
   private final String key = UUID.randomUUID().toString();
@@ -69,7 +74,7 @@ public class Merge<T> implements Publisher<T> {
     final BranchSubscriber s = new BranchSubscriber();
 
     tracer.accept(() -> s + ": subscribe to " + publisher);
-    publisher.subscribe(s);
+    with(publisher).per(BATCH_SIZE, TIMEOUT).get().subscribe(s);
 
     return s;
   }
@@ -82,7 +87,7 @@ public class Merge<T> implements Publisher<T> {
     publisher.subscribe(subscriber);
   }
 
-  private class BranchSubscriber implements Subscriber<T> {
+  private class BranchSubscriber implements Subscriber<List<T>> {
     private boolean complete;
     private long pendingRequests;
     private Subscription subscription;
@@ -149,12 +154,12 @@ public class Merge<T> implements Publisher<T> {
       return this + ": onError: " + t + "\ncomplete: " + complete + "\n";
     }
 
-    public void onNext(final T item) {
+    public void onNext(final List<T> item) {
       dispatch(
           () -> {
             if (!publisher.isClosed()) {
               tracer.accept(() -> "Add onNext to queue " + this + ": " + item);
-              publisher.getQueue().add(item);
+              publisher.getQueue().addAll(item);
             }
           });
     }

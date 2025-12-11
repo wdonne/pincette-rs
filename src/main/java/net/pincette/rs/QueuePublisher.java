@@ -2,8 +2,6 @@ package net.pincette.rs;
 
 import static java.util.logging.Logger.getLogger;
 
-import java.util.ArrayList;
-import java.util.List;
 import java.util.Queue;
 import java.util.UUID;
 import java.util.concurrent.Flow.Publisher;
@@ -101,17 +99,14 @@ public class QueuePublisher<T> implements Publisher<T> {
     dispatch(subscriber::onComplete);
   }
 
-  private List<T> consume() {
+  private void consume() {
     int i;
-    final List<T> result = new ArrayList<>((int) requested);
 
     for (i = 0; i < requested && !queue.isEmpty(); ++i) {
-      result.add(queue.remove());
+      subscriber.onNext(queue.remove());
     }
 
     requested -= i;
-
-    return result;
   }
 
   private void dispatch(final Runnable action) {
@@ -129,15 +124,7 @@ public class QueuePublisher<T> implements Publisher<T> {
                 + queue.size());
 
     if (subscriber != null && !completed) {
-      final List<T> elements = consume();
-
-      if (!elements.isEmpty()) {
-        trace(() -> "Emit " + elements.size() + " items");
-        dispatch(() -> elements.forEach(e -> subscriber.onNext(e)));
-      } else {
-        trace(() -> "No elements to emit");
-      }
-
+      consume();
       onDepleted();
 
       if (closed && queue.isEmpty()) {
