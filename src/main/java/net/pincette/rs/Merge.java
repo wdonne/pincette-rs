@@ -30,7 +30,7 @@ public class Merge<T> implements Publisher<T> {
 
   private final List<BranchSubscriber> branchSubscribers;
   private final String key = UUID.randomUUID().toString();
-  private final QueuePublisher<T> publisher = queuePublisher((p, n) -> more());
+  private final QueuePublisher<T> publisher = queuePublisher((p, n) -> more(), p -> cancel());
   private final Consumer<Supplier<String>> tracer;
 
   /**
@@ -79,6 +79,10 @@ public class Merge<T> implements Publisher<T> {
     return s;
   }
 
+  private void cancel() {
+    branchSubscribers.forEach(BranchSubscriber::cancel);
+  }
+
   private void more() {
     branchSubscribers.stream().filter(s -> !s.complete).forEach(BranchSubscriber::more);
   }
@@ -94,6 +98,10 @@ public class Merge<T> implements Publisher<T> {
 
     private boolean allCompleted() {
       return branchSubscribers.stream().allMatch(s -> s.complete);
+    }
+
+    private void cancel() {
+      subscription.cancel();
     }
 
     private void cancelOthers() {

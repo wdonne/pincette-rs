@@ -376,7 +376,7 @@ public abstract class Buffered<T, R> extends ProcessorBase<T, R> {
         () ->
             dispatch(
                 () -> {
-                  if (!isCompleted() && !getError()) {
+                  if (!isCompleted() && !cancelled && !getError()) {
                     runRequestTimeout();
                     keepItGoing();
                   }

@@ -8,6 +8,7 @@ import java.util.concurrent.Flow.Publisher;
 import java.util.concurrent.Flow.Subscriber;
 import java.util.concurrent.Flow.Subscription;
 import java.util.function.BiConsumer;
+import java.util.function.Consumer;
 import java.util.function.Supplier;
 import java.util.logging.Logger;
 import net.pincette.util.NotifyingDeque;
@@ -26,12 +27,13 @@ public class QueuePublisher<T> implements Publisher<T> {
   private boolean closed;
   private boolean completed;
   private final String key = UUID.randomUUID().toString();
+  private final Consumer<QueuePublisher<T>> onCancel;
   private final BiConsumer<QueuePublisher<T>, Long> onDepleted;
   private long requested;
   private Subscriber<? super T> subscriber;
 
   public QueuePublisher() {
-    this(null);
+    this(null, null);
   }
 
   /**
@@ -42,7 +44,23 @@ public class QueuePublisher<T> implements Publisher<T> {
    * @since 3.11.0
    */
   public QueuePublisher(final BiConsumer<QueuePublisher<T>, Long> onDepleted) {
+    this(onDepleted, null);
+  }
+
+  /**
+   * Creates a queue publisher with a function to signal the depletion of the queue and another to
+   * signal the cancellation.
+   *
+   * @param onDepleted the function that is called when the queue of the publisher is depleted while
+   *     there are pending requests.
+   * @param onCancel the function that is called when the stream is cancelled.
+   * @since 3.11.5
+   */
+  public QueuePublisher(
+      final BiConsumer<QueuePublisher<T>, Long> onDepleted,
+      final Consumer<QueuePublisher<T>> onCancel) {
     this.onDepleted = onDepleted;
+    this.onCancel = onCancel;
   }
 
   /**
@@ -67,6 +85,23 @@ public class QueuePublisher<T> implements Publisher<T> {
   public static <T> QueuePublisher<T> queuePublisher(
       final BiConsumer<QueuePublisher<T>, Long> onDepleted) {
     return new QueuePublisher<>(onDepleted);
+  }
+
+  /**
+   * Creates a queue publisher with a function to signal the depletion of the queue and another to
+   * signal the cancellation.
+   *
+   * @param onDepleted the function that is called when the queue of the publisher is depleted while
+   *     there are pending requests.
+   * @param onCancel the function that is called when the stream is cancelled.
+   * @return The publisher.
+   * @param <T> the value type.
+   * @since 3.11.0
+   */
+  public static <T> QueuePublisher<T> queuePublisher(
+      final BiConsumer<QueuePublisher<T>, Long> onDepleted,
+      final Consumer<QueuePublisher<T>> onCancel) {
+    return new QueuePublisher<>(onDepleted, onCancel);
   }
 
   private void added(final Queue<T> queue) {
@@ -208,6 +243,11 @@ public class QueuePublisher<T> implements Publisher<T> {
   private class Backpressure implements Subscription {
     public void cancel() {
       trace(() -> "cancel");
+
+      if (onCancel != null) {
+        onCancel.accept(QueuePublisher.this);
+      }
+
       queue.clear();
       close();
     }

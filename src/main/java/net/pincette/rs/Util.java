@@ -816,7 +816,10 @@ public class Util {
   public static <T> Processor<T, T> throttle(final int maxPerSecond) {
     final Running running = new Running(maxPerSecond);
 
-    return mapAsyncSequential(m -> running.update().thenApply(r -> m));
+    return pipe(mapAsyncSequential((T m) -> running.update().thenApply(r -> m)))
+        .then(onCancelProcessor(running::stop))
+        .then(onCompleteProcessor(running::stop))
+        .then(onErrorProcessor(e -> running.stop()));
   }
 
   static void throwBackpressureViolation(
@@ -910,9 +913,14 @@ public class Util {
     private final int maxPerSecond;
     private long count = 0;
     private Instant second = now().truncatedTo(SECONDS);
+    private boolean stop;
 
     private Running(final int maxPerSecond) {
       this.maxPerSecond = maxPerSecond;
+    }
+
+    private void stop() {
+      stop = true;
     }
 
     private CompletionStage<Boolean> update() {
@@ -925,7 +933,7 @@ public class Util {
 
       final Duration remaining = between(now(), now.plusSeconds(1));
 
-      return ++count >= maxPerSecond && !remaining.isNegative()
+      return !stop && ++count >= maxPerSecond && !remaining.isNegative()
           ? supplyAsyncAfter(() -> true, remaining)
           : completedFuture(true);
     }

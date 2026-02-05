@@ -65,7 +65,9 @@ public class AskForever<T> extends ProcessorBase<T, T> {
               subscription.request(1);
             }
 
-            runTimeout();
+            if (!completed && !cancelled() && !getError()) {
+              runTimeout();
+            }
           }
         },
         timeout);
