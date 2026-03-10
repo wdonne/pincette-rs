@@ -58,7 +58,12 @@ public class Async<T> extends ProcessorBase<CompletionStage<T>, T> {
 
   @Override
   protected void emit(final long number) {
-    subscription.request(number);
+    dispatch( // Make sure this doesn't happen anymore when the stream is dead.
+        () -> {
+          if (isAlive()) {
+            subscription.request(number);
+          }
+        });
   }
 
   @Override
@@ -78,10 +83,17 @@ public class Async<T> extends ProcessorBase<CompletionStage<T>, T> {
 
     dispatch(
         () -> {
-          if (!getError()) {
+          if (isAlive()) {
             previous =
                 previous
-                    .thenComposeAsync(v -> stage.thenAccept(value -> subscriber.onNext(value)))
+                    .thenComposeAsync(
+                        v ->
+                            stage.thenAccept(
+                                value -> {
+                                  if (isAlive()) {
+                                    subscriber.onNext(value);
+                                  }
+                                }))
                     .exceptionally(
                         t -> {
                           setError(true);

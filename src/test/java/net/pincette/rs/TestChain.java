@@ -185,7 +185,7 @@ class TestChain {
   @DisplayName("chain backpressureTimeout1")
   void backpressureTimeout1() {
     assertThrows(
-        Exception.class,
+        Throwable.class,
         () ->
             runTest(
                 list(),

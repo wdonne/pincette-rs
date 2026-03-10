@@ -42,14 +42,19 @@ public class AsyncDepend<T, R> extends ProcessorBase<T, R> {
 
   @Override
   protected void emit(final long number) {
-    subscription.request(number);
+    dispatch( // Make sure this doesn't happen anymore when the stream is dead.
+        () -> {
+          if (isAlive()) {
+            subscription.request(number);
+          }
+        });
   }
 
   @Override
   public void onComplete() {
     dispatch(
         () -> {
-          if (!getError()) {
+          if (isAlive()) {
             previous.thenRunAsync(() -> subscriber.onComplete());
           }
         });
@@ -63,13 +68,16 @@ public class AsyncDepend<T, R> extends ProcessorBase<T, R> {
 
     dispatch(
         () -> {
-          if (!getError()) {
+          if (isAlive()) {
             previous =
                 previous
                     .thenComposeAsync(v -> function.apply(value, v))
                     .thenApply(
                         r -> {
-                          subscriber.onNext(r);
+                          if (isAlive()) {
+                            subscriber.onNext(r);
+                          }
+
                           return r;
                         })
                     .exceptionally(

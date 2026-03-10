@@ -72,6 +72,10 @@ public abstract class ProcessorBase<T, R> implements Processor<T, R> {
     return error;
   }
 
+  protected boolean isAlive() {
+    return !getError() && !cancelled();
+  }
+
   private void notifySubscriber() {
     if (subscriber != null) {
       if (pendingException != null) {
