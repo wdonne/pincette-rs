@@ -146,7 +146,9 @@ public class Per<T> extends Buffered<T, List<T>> {
       runTimeout();
     }
 
-    return sendSlices(isCompleted());
+    sendSlices(isCompleted());
+
+    return true;
   }
 
   private void onNextTimeout() {
@@ -162,16 +164,13 @@ public class Per<T> extends Buffered<T, List<T>> {
     runAsyncAfter(() -> dispatch(this::onNextTimeout), timeout);
   }
 
-  private boolean sendSlices(final boolean flush) {
-    return consumeBuffer(flush)
-        .map(
+  private void sendSlices(final boolean flush) {
+    consumeBuffer(flush)
+        .ifPresent(
             list -> {
               addValues(list);
               emit();
-
-              return true;
-            })
-        .orElse(false);
+            });
   }
 
   private boolean shouldRunTimeout() {

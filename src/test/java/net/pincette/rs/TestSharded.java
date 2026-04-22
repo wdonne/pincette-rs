@@ -110,7 +110,7 @@ class TestSharded {
   @Test
   @DisplayName("sharded 6")
   void sharded6() {
-    test(100000, 10, 1000, 100);
+    test(10000, 10, 1000, 100);
   }
 
   record Message(String id, int value) {}

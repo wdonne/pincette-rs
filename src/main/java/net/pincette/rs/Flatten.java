@@ -154,7 +154,7 @@ public class Flatten<T> extends ProcessorBase<Publisher<T>, T> {
           () -> {
             trace(() -> "monitor complete");
 
-            if (completed && !pendingElement) {
+            if ((subscription == null || completed) && !pendingElement) {
               completeSubscriber();
             }
           });
