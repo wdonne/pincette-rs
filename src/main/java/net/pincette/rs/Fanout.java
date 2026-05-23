@@ -279,13 +279,16 @@ public class Fanout<T> implements Subscriber<T> {
     }
 
     public void cancel() {
-      if (!cancelled) {
-        cancelled = true;
+      dispatch(
+          () -> {
+            if (!cancelled) {
+              cancelled = true;
 
-        if (allCancelled()) {
-          subscription.cancel();
-        }
-      }
+              if (allCancelled()) {
+                subscription.cancel();
+              }
+            }
+          });
     }
 
     private Optional<Long> lowestCommon(final Function<Backpressure, Long> value) {
@@ -335,12 +338,14 @@ public class Fanout<T> implements Subscriber<T> {
     private void sendValue(final T value) {
       dispatch(
           () -> {
-            if (--requested < 0) {
-              throwBackpressureViolation(this, subscription, requested);
-            }
+            if (!cancelled) {
+              if (--requested < 0) {
+                throwBackpressureViolation(this, subscription, requested);
+              }
 
-            tracer.accept(() -> this + ": onNext: " + value);
-            subscriber.onNext(value);
+              tracer.accept(() -> this + ": onNext: " + value);
+              subscriber.onNext(value);
+            }
           });
     }
   }

@@ -33,8 +33,6 @@ import static net.pincette.util.Pair.pair;
 import static net.pincette.util.ScheduledCompletionStage.composeAsyncAfter;
 import static net.pincette.util.ScheduledCompletionStage.supplyAsyncAfter;
 import static net.pincette.util.StreamUtil.rangeExclusive;
-import static net.pincette.util.StreamUtil.repeatForever;
-import static net.pincette.util.StreamUtil.zip;
 import static net.pincette.util.Util.tryToDoRethrow;
 
 import java.nio.ByteBuffer;
@@ -42,9 +40,7 @@ import java.time.Duration;
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.Deque;
-import java.util.HashMap;
 import java.util.List;
-import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionStage;
@@ -708,19 +704,7 @@ public class Util {
     return box(result, buffer(1));
   }
 
-  static Map<Integer, Long> roundRobinMergeRequest(
-      final List<Integer> candidates, final long request) {
-    return zip(rangeExclusive(0, request), repeatForever(candidates))
-        .map(pair -> pair.second)
-        .reduce(
-            new HashMap<>(),
-            (map, position) -> {
-              map.put(position, map.computeIfAbsent(position, k -> 0L) + 1);
-              return map;
-            },
-            (m1, m2) -> m1);
-  }
-
+  @Deprecated(since = "3.11.8", forRemoval = true)
   public static <T, R> Processor<T, R> sharded(
       final Supplier<Processor<T, R>> processor,
       final int numberOfShards,

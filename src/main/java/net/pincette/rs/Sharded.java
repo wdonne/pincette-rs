@@ -17,6 +17,7 @@ import java.util.function.ToIntFunction;
  * @author Werner Donné
  * @since 3.11.0
  */
+@Deprecated(since = "3.11.8", forRemoval = true)
 public class Sharded<T, R> extends Delegate<T, R> {
   /**
    * Creates a sharded processor. It uses the standard Java <code>hashCode</code> method and a
